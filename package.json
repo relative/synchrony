@@ -1,0 +1,16 @@
+{
+  "name": "synchrony",
+  "version": "1.0.0",
+  "description": "javascript-obfuscator cleaner & deobfuscator",
+  "main": "src/index.js",
+  "repository": "git@github.com:uwu/synchrony.git",
+  "author": "relative <relative@riseup.net>",
+  "license": "GPL-3.0-or-later",
+  "private": false,
+  "dependencies": {
+    "acorn": "^8.0.4",
+    "acorn-walk": "^8.0.0",
+    "chalk": "^4.1.0",
+    "escodegen": "^2.0.0"
+  }
+}
