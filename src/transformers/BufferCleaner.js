@@ -1,9 +1,6 @@
 const Transformer = require('./Transformer'),
   walk = require('acorn-walk')
 
-const { unaryExpressionToNumber } = require('../util/Translator'),
-  math = require('../util/Math')
-
 const WHITELISTED_FROMS = ['base64']
 const WHITELISTED_PROPS = ['toString']
 
