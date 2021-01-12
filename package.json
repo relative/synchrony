@@ -1,5 +1,5 @@
 {
-  "name": "synchrony",
+  "name": "deobfuscator",
   "version": "1.0.0",
   "description": "javascript-obfuscator cleaner & deobfuscator",
   "main": "src/index.js",
@@ -7,6 +7,9 @@
   "author": "relative <relative@riseup.net>",
   "license": "GPL-3.0-or-later",
   "private": false,
+  "bin": {
+    "synchrony": "src/index.js"
+  },
   "dependencies": {
     "acorn": "^8.0.4",
     "acorn-walk": "^8.0.0",
