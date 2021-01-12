@@ -211,7 +211,7 @@ const Config = {
     {
       name: 'StringDecoderTransformer',
       params: {
-        identifiers: [['_0x19c7f6', 0, _0x2e2a, TYPE_THREE]],
+        identifiers: [['_0x19c7f6', 0, _0x2e2a, 2]], // TYPE_THREE
       },
     },
     {
