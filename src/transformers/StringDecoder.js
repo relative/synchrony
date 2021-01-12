@@ -1,6 +1,8 @@
 const Transformer = require('./Transformer'),
   walk = require('acorn-walk')
 
+const { CleanArgumentsArray } = require('../util/Translator')
+
 const IDX_IDENT = 0,
   IDX_OFFSET = 1,
   IDX_FN = 2,
@@ -8,7 +10,8 @@ const IDX_IDENT = 0,
 
 const TYPE_ONE = 0,
   TYPE_TWO = 1,
-  TYPE_THREE = 2
+  TYPE_THREE = 2,
+  TYPE_FOUR = 3 // Passthru.
 
 module.exports = class StringDecoderTransformer extends (
   Transformer
@@ -16,10 +19,26 @@ module.exports = class StringDecoderTransformer extends (
   constructor(params) {
     super('StringDecoderTransformer', 'red', params)
     this.identifiers = params.identifiers
+    this.findStringArrays = params.findStringArrays
   }
 
   async run(ast) {
     const log = this.log.bind(this)
+    if (this.findStringArrays) {
+      walk.ancestor(ast, {
+        CallExpression(node, ancestors) {
+          let callExp = node
+          if (callExp.arguments.length !== 2) return // [stringArray, breakCond]
+          if (callExp.arguments[0].type !== 'Identifier') return // stringArray
+          if (callExp.arguments[1].type !== 'Literal') return // breakCond
+
+          let stringArray = callExp.arguments[0].name
+          let breakCond = callExp.arguments[1].value
+          if (typeof breakCond !== 'number') return
+          log('Found possible stringArray identifier', stringArray, breakCond)
+        },
+      })
+    }
 
     /*const stringArrays = ['_0x296b']
 
@@ -116,9 +135,24 @@ module.exports = class StringDecoderTransformer extends (
 
         let decNode = identifiers.find((i) => i[IDX_IDENT] === call.callee.name)
         if (!decNode) return
+
+        if (decNode[IDX_TYPE] === TYPE_FOUR) {
+          // passthru
+          let args = CleanArgumentsArray(call.arguments)
+          if (args.some((i) => typeof i === 'undefined')) return
+          let str = decNode[IDX_FN].apply(this, args)
+          log(
+            `Decoded passthru ${call.callee.name}(${args.join(',')}) => ${str}`
+          )
+          call.type = 'Literal'
+          call.value = str
+          return
+        }
+
         let args = call.arguments.map((i) => i.value)
+
         if (args.some((i) => typeof i === 'undefined')) return
-        let raw = call.arguments.map((i) => i.raw)
+
         if (decNode[IDX_TYPE] === TYPE_TWO) {
           // reverse the args lol
           args[1] = parseInt(args[1]) + decNode[IDX_OFFSET]
