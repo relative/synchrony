@@ -21,6 +21,23 @@ module.exports = class StringDecoderTransformer extends (
   async run(ast) {
     const log = this.log.bind(this)
 
+    /*const stringArrays = ['_0x296b']
+
+    walk.ancestor(ast, {
+      CallExpression(node, ancestors) {
+        let callExp = node
+        if (callExp.arguments.length !== 2) return // [stringArray, breakCond]
+        if (callExp.arguments[0].type !== 'Identifier') return // stringArray
+        if (callExp.arguments[1].type !== 'Literal') return // breakCond
+
+        let stringArray = callExp.arguments[0].name
+        let breakCond = callExp.arguments[1].value
+
+        if (!stringArrays.includes(stringArray)) return // invalid string array ident.
+        log(stringArray, breakCond)
+      },
+    })
+    return ast*/
     //const identifiers = [['_0x19c7f6', 0, _0x2e2a, TYPE_THREE]]
     const identifiers = this.identifiers
     walk.simple(ast, {
@@ -47,7 +64,7 @@ module.exports = class StringDecoderTransformer extends (
         let argu = call.arguments[0]
         let fnType = TYPE_ONE
         if (argu.type === 'Identifier') {
-          fnType = TYPE_TWO
+          //fnType = TYPE_TWO
           argu = call.arguments[1]
         }
         if (argu.type !== 'BinaryExpression') return
@@ -85,8 +102,6 @@ module.exports = class StringDecoderTransformer extends (
       },
     })
 
-    console.log(identifiers)
-
     walk.simple(ast, {
       CallExpression(call) {
         /*if (!node.expression) return
@@ -103,6 +118,7 @@ module.exports = class StringDecoderTransformer extends (
         if (!decNode) return
         let args = call.arguments.map((i) => i.value)
         if (args.some((i) => typeof i === 'undefined')) return
+        let raw = call.arguments.map((i) => i.raw)
         if (decNode[IDX_TYPE] === TYPE_TWO) {
           // reverse the args lol
           args[1] = parseInt(args[1]) + decNode[IDX_OFFSET]
@@ -110,7 +126,9 @@ module.exports = class StringDecoderTransformer extends (
         } else {
           args[0] = parseInt(args[0]) + decNode[IDX_OFFSET]
         }
+
         let str = decNode[IDX_FN](args[0], args[1])
+
         log(`Decoded ${call.callee.name}(${args[0]}, ${args[1]}) => ${str}`)
         call.type = 'Literal'
         call.value = str

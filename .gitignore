@@ -118,3 +118,5 @@ dist
 /test.js
 *.cleaned.js
 *.dev.js
+
+scratch/

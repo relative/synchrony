@@ -13,6 +13,24 @@ module.exports = class SimplifyTransformer extends (
 
   async run(ast) {
     const log = this.log.bind(this)
+    // Simplify negative string (number type coercion)
+    walk.simple(ast, {
+      UnaryExpression(node) {
+        if (
+          node.argument &&
+          node.argument.type === 'Literal' &&
+          typeof node.argument.value === 'string' &&
+          node.argument.value.startsWith('0x') && // Could be removed
+          node.operator === '-'
+        ) {
+          node.type = 'Literal'
+          node.value = unaryExpressionToNumber(node, true)
+          delete node.operator
+          delete node.prefix
+        }
+      },
+    })
+
     // Simplify string-concatentation
     walk.simple(ast, {
       BinaryExpression(node) {
