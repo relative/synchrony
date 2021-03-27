@@ -7,7 +7,7 @@ module.exports = {
     {
       name: 'StringDecoderTransformer',
       params: {
-        identifiers: [['function', 0, func, 0]],
+        identifiers: [['function', 0, func, 0, [0, 1]]],
         findStringArrays: true,
       },
     },
@@ -20,7 +20,7 @@ module.exports = {
       params: {},
     },
     {
-      name: 'ControlFlowTransformer',
+      name: 'MemberExpressionCleanerTransformer',
       params: {},
     },
     {

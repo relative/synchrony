@@ -15,7 +15,12 @@
     "acorn-walk": "^8.0.0",
     "chalk": "^4.1.0",
     "escodegen": "^2.0.0",
+    "lodash": "^4.17.20",
+    "node-fetch": "^2.6.1",
     "pretty-ms": "^7.0.1",
     "yargs": "^16.2.0"
+  },
+  "devDependencies": {
+    "javascript-obfuscator": "^2.10.3"
   }
 }

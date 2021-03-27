@@ -13,6 +13,10 @@ const Transformers = require('./transformers')
 async function main(config, file) {
   config.transformers.forEach((cfgTransformer, index) => {
     let clazz = Transformers.find((tf) => tf.name === cfgTransformer.name)
+    if (cfgTransformer.params && cfgTransformer.params.disabled)
+      return (config.transformers[index] = {
+        run: () => {},
+      })
     if (!clazz)
       throw new Error(`Transformer "${cfgTransformer.name}" does not exist`)
     config.transformers[index] = new clazz(cfgTransformer.params)

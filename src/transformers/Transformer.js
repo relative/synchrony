@@ -8,6 +8,7 @@ module.exports = class Transformer {
   }
 
   log(...args) {
+    if (this.params.log === false) return
     console.log(`(${chalk[this.color](this.name)})`, ...args)
   }
 
