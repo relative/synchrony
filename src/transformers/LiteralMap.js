@@ -4,9 +4,7 @@ const Transformer = require('./Transformer'),
 const { unaryExpressionToNumber } = require('../util/Translator'),
   math = require('../util/Math')
 
-module.exports = class LiteralMapTransformer extends (
-  Transformer
-) {
+module.exports = class LiteralMapTransformer extends Transformer {
   constructor(params) {
     super('LiteralMapTransformer', 'yellow', params)
   }

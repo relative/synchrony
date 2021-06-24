@@ -38,11 +38,22 @@ function getConsFromNode(node) {
       offset = -1 * parseInt(node.argument.value)
     }
   } else if (node.type === 'BinaryExpression') {
-    let consequence = [node.left, node.right].filter(
-      (i) => i.type === 'Literal'
+    let consequences = [node.left, node.right].filter(
+      (i) => i.type === 'Literal' || i.type === 'UnaryExpression'
     )
-    if (!consequence) return
-    return consequence.value
+    if (!consequences || consequences.length === 0) return
+    for (let consequence of consequences) {
+      switch (consequence.type) {
+        case 'UnaryExpression':
+          if (consequence.operator !== '-') return
+          if (!consequence.prefix) return
+          if (consequence.argument.type !== 'Literal') return
+          return consequence.argument.value * -1
+        case 'Literal':
+        default:
+          return consequence.value
+      }
+    }
   } else {
     console.log(require('util').inspect(node, false, 1000, true))
     return
@@ -317,7 +328,7 @@ module.exports = class StringDecoderTransformer extends Transformer {
         //log(`${call.callee.name}(${offset}, ${ident})`)
         let str = decNode[IDX_FN](offset, ident)
 
-        //log(`Decoded ${call.callee.name}(${offset}, ${ident}) => ${str}`)
+        log(`Decoded ${call.callee.name}(${offset}, ${ident}) => ${str}`)
         call.type = 'Literal'
         call.value = str
       },
