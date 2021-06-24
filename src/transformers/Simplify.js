@@ -4,9 +4,7 @@ const Transformer = require('./Transformer'),
 const { unaryExpressionToNumber } = require('../util/Translator'),
   math = require('../util/Math')
 
-module.exports = class SimplifyTransformer extends (
-  Transformer
-) {
+module.exports = class SimplifyTransformer extends Transformer {
   constructor(params) {
     super('SimplifyTransformer', 'blue', params)
   }
@@ -79,8 +77,13 @@ module.exports = class SimplifyTransformer extends (
           typeof node.right.value === 'number'
         ) {
           let val = math(node.left.value, node.operator, node.right.value)
+          if (isNaN(val)) {
+            // Will throw error on code generation, ignore
+            return
+          }
           node.type = 'Literal'
           node.value = val
+
           log(
             'Combined BinaryExpression ->',
             node.left.value,

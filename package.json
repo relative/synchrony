@@ -20,7 +20,5 @@
     "pretty-ms": "^7.0.1",
     "yargs": "^16.2.0"
   },
-  "devDependencies": {
-    "javascript-obfuscator": "^2.10.3"
-  }
+  "devDependencies": {}
 }
