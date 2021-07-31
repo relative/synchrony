@@ -105,3 +105,124 @@ module.exports = {
   ],
 }
 ```
+
+## StringArrayTransformer notes
+
+Converts from
+
+```js
+t[_oo0[1]][_oo0[27]] = function () {
+  var _oQo = [
+    0,
+    '\x64\x6f\x63\x75\x6d\x65\x6e\x74\x4c\x69\x73\x74',
+    '\x5f\x5f\x61\x77\x61\x69\x74\x65\x72',
+  ]
+  var _sZz2sZS2 = _oQo[1]
+  return k[_oQo[2]](this, void _oQo[0], void _oQo[0], function () {
+    var _zz = ['x', '\x5f\x5f\x67\x65\x6e\x65\x72\x61\x74\x6f\x72', 36067]
+    var e
+    var _00OO0QQo = _zz[2],
+      _SSZ$z2$s = _zz[0]
+    return k[_zz[1]](this, function (t) {
+      var _l1I = [
+        4,
+        '\x6c\x61\x62\x65\x6c',
+        '\x69\x6e\x70\x75\x74',
+        '\x62\x43\x6f\x6c\x6c\x65\x63\x74\x6f\x72\x45\x6e\x63\x72\x79\x70\x74',
+        '\x73\x65\x6e\x74',
+        '\x76\x61\x6c\x75\x65',
+        2,
+        '\x63\x6f\x6c\x6c\x65\x63\x74',
+        1,
+        '\x62\x44\x6f\x6d',
+        0,
+      ]
+      var _22S$S22s = _l1I[3],
+        _O0QoooOo = _l1I[9]
+      switch (t[_l1I[1]]) {
+        case _l1I[10]:
+          return [_l1I[0], this[_l1I[7]]()]
+        case _l1I[8]:
+          return (e = t[_l1I[4]]()), (this[_l1I[2]][_l1I[5]] = e), [_l1I[6]]
+      }
+    })
+  })
+}
+```
+
+to
+
+```js
+t.prototype['report'] = function () {
+  var _oQo = [0, 'documentList', '__awaiter']
+  var _sZz2sZS2 = 'documentList'
+  return k['__awaiter'](this, void 0, void 0, function () {
+    var _zz = ['x', '__generator', 36067]
+    var e
+    var _00OO0QQo = 36067,
+      _SSZ$z2$s = 'x'
+    return k['__generator'](this, function (t) {
+      var _l1I = [
+        4,
+        'label',
+        'input',
+        'bCollectorEncrypt',
+        'sent',
+        'value',
+        2,
+        'collect',
+        1,
+        'bDom',
+        0,
+      ]
+      var _22S$S22s = 'bCollectorEncrypt',
+        _O0QoooOo = 'bDom'
+      switch (t.label) {
+        case 0:
+          return [4, this['collect']()]
+        case 1:
+          return (e = t.sent()), (this['input']['value'] = e), [2]
+      }
+    })
+  })
+}
+```
+
+Example config
+
+```js
+module.exports = {
+  transformers: [
+    {
+      name: 'SimplifyTransformer',
+      params: {},
+    },
+    {
+      name: 'StringArrayTransformer',
+      params: {
+        findIdentifiers: true,                     // finds arrays for you
+        findIdentifiers_onlyEscapeSeqsOnStr: true, // Only finds arrs with
+                                                   // escape seq strs or \n s
+                                                   // (see above)
+      },
+    },
+    {
+      name: 'LiteralMapTransformer',
+      params: {},
+    },
+    {
+      name: 'SimplifyTransformer',
+      params: {},
+    },
+    {
+      name: 'MemberExpressionCleanerTransformer',
+      params: {},
+    },
+    {
+      name: 'BufferCleanerTransformer',
+      params: {},
+    },
+  ],
+}
+
+```
