@@ -53,14 +53,12 @@ module.exports = class StringArrayTransformer extends Transformer {
                 !e.raw.match('\\\\n')
             )
           ) {
-            // todo! remove
-            log(`ident ${idName} had a string not matching escape seq or nl`)
             return
           }
         }
 
         arrays[idName] = elements.map((e) => e.value)
-        //log(`ident ${idName} found with ${elements.length} strings`)
+        log(`ident ${idName} found with ${elements.length} strings`)
       },
     })
 
@@ -79,9 +77,9 @@ module.exports = class StringArrayTransformer extends Transformer {
         }
         node.type = 'Literal'
         node.value = arrays[node.object.name][node.property.value]
-        /*log(
+        log(
           `Changed ${node.object.name}[${node.property.value}] => ${node.value}`
-        )*/
+        )
         return
       },
     })
