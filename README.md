@@ -7,6 +7,8 @@ javascript cleaner & deobfuscator (primarily [javascript-obfuscator](https://git
 ```shell
 # 1. Install deobfuscator globally using yarn/npm
 yarn global add deobfuscator # OR npm install --global deobfuscator
+# 1.2. Or Install from Git
+# yarn global add uwu/synchrony#master # OR npm install --global uwu/synchrony#master
 
 # 2. Get an obfuscated file
 
@@ -200,10 +202,10 @@ module.exports = {
     {
       name: 'StringArrayTransformer',
       params: {
-        findIdentifiers: true,                     // finds arrays for you
+        findIdentifiers: true, // finds arrays for you
         findIdentifiers_onlyEscapeSeqsOnStr: true, // Only finds arrs with
-                                                   // escape seq strs or \n s
-                                                   // (see above)
+        // escape seq strs or \n s
+        // (see above)
       },
     },
     {
@@ -224,5 +226,4 @@ module.exports = {
     },
   ],
 }
-
 ```
