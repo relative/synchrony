@@ -7,10 +7,12 @@ const { unaryExpressionToNumber } = require('../util/Translator'),
 module.exports = class SimplifyTransformer extends Transformer {
   constructor(params) {
     super('SimplifyTransformer', 'blue', params)
+    this.simplifyTruthyFalsy = params.simplifyTruthyFalsy ?? false
   }
 
   async run(ast) {
     const log = this.log.bind(this)
+    const simplifyTruthyFalsy = this.simplifyTruthyFalsy
     // Simplify negative string (number type coercion)
     walk.simple(ast, {
       UnaryExpression(node) {
@@ -108,6 +110,23 @@ module.exports = class SimplifyTransformer extends Transformer {
         }
       },
     })
+
+    if (simplifyTruthyFalsy) {
+      // Simplify truthy/falsy values (!1, !0)
+      walk.simple(ast, {
+        UnaryExpression(node) {
+          if (node.operator !== '!') return
+          if (
+            node.argument.type !== 'Literal' ||
+            typeof node.argument.value !== 'number'
+          )
+            return
+          if (![0, 1].includes(node.argument.value)) return
+          node.value = !node.argument.value
+          node.type = 'Literal'
+        },
+      })
+    }
 
     return ast
   }
