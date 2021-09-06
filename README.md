@@ -1,5 +1,7 @@
 # synchrony
 
+![rip javascript-obfuscator](/.github/hm.png)
+
 javascript cleaner & deobfuscator (primarily [javascript-obfuscator](https://github.com/javascript-obfuscator/javascript-obfuscator)/[obfuscator.io](https://obfuscator.io))
 
 ## Usage
