@@ -6,12 +6,28 @@ import {
   Program,
 } from './util/types'
 
-interface DecoderFunction {
+export enum DecoderFunctionType {
+  SIMPLE,
+  BASE64,
+  RC4,
+}
+
+export interface DecoderFunction {
   identifier: string
+  type: DecoderFunctionType
   offset: number
 }
 
-interface DecoderReference {
+export interface DecoderFunctionSimple extends DecoderFunction {
+  type: DecoderFunctionType.SIMPLE
+}
+
+export interface DecoderFunctionBase64 extends DecoderFunction {
+  type: DecoderFunctionType.BASE64
+  charset: string
+}
+
+export interface DecoderReference {
   identifier: string
   realIdentifier: string
   additionalOffset: number

@@ -5,6 +5,7 @@ import {
   VariableDeclaration,
   ExpressionStatement,
   ReturnStatement,
+  CallExpression,
   StringLiteral,
   Identifier,
   Statement,
@@ -16,7 +17,12 @@ import { walk } from '../util/walk'
 import * as Guard from '../util/guard'
 import { immutate } from '../util/helpers'
 
-import Context from '../context'
+import Context, {
+  DecoderFunction,
+  DecoderFunctionBase64,
+  DecoderFunctionType,
+  DecoderReference,
+} from '../context'
 import { literalOrUnaryExpressionToNumber } from '../util/translator'
 import Simplify from './simplify'
 
@@ -26,8 +32,78 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
     super('StringDecoder', options)
   }
 
+  private util_b64_decode(chars: string, str: string): string {
+    let buf = '',
+      i = 0
+    while (i < str.length) {
+      let c = [
+        chars.indexOf(str.charAt(i++)),
+        chars.indexOf(str.charAt(i++)),
+        chars.indexOf(str.charAt(i++)),
+        chars.indexOf(str.charAt(i++)),
+      ]
+      let x = ((c[0] & 0x3f) << 2) | ((c[1] >> 4) & 0x3),
+        y = ((c[1] & 0xf) << 4) | ((c[2] >> 2) & 0xf),
+        z = ((c[2] & 0x3) << 6) | (c[3] & 0x3f)
+      buf +=
+        String.fromCharCode(x) +
+        (y ? String.fromCharCode(y) : '') +
+        (z ? String.fromCharCode(z) : '')
+    }
+    return buf
+  }
+  private util_decode = (
+    context: Context,
+    identifier: string,
+    index: number
+  ) => {
+    // """type safety"""
+    let decoder: DecoderFunction,
+      offset = 0,
+      decRef = -1
+    let predicate = (dec: DecoderFunction | DecoderReference) =>
+      dec.identifier === identifier
+    if (context.stringDecoders.findIndex(predicate) !== -1) {
+      decoder = context.stringDecoders.find(predicate)!
+    } else if (
+      (decRef = context.stringDecoderReferences.findIndex(predicate)) !== -1
+    ) {
+      identifier = context.stringDecoderReferences[decRef].realIdentifier
+      offset += context.stringDecoderReferences[decRef].additionalOffset
+      decoder = context.stringDecoders.find(predicate)!
+    } else {
+      throw new TypeError(
+        `Failed to decode ${identifier}(${index}, ${offset}), no decoder`
+      )
+    }
+    offset += decoder.offset
+    switch (decoder.type) {
+      case DecoderFunctionType.SIMPLE:
+        return this.decodeSimple(context, index, offset)
+      case DecoderFunctionType.BASE64:
+        return this.decodeBase64(context, identifier, index, offset)
+      default:
+        throw new TypeError('Invalid decoder function type')
+    }
+  }
+
   decodeSimple(context: Context, index: number, offset: number) {
     return context.stringArray[index + offset]
+  }
+  decodeBase64(
+    context: Context,
+    identifier: string, // grab the charset from our identifier
+    index: number,
+    offset: number
+  ) {
+    let str = context.stringArray[index + offset],
+      charset = (
+        context.stringDecoders.find(
+          (d) =>
+            d.identifier === identifier && d.type === DecoderFunctionType.BASE64
+        ) as DecoderFunctionBase64
+      ).charset
+    return this.util_b64_decode(charset, str)
   }
 
   // Find the string array automatically
@@ -125,7 +201,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
             !Guard.isUnaryExpression(body[0].expression.right.right))
         )
           return
-        ;``
+
         // our offset in our code will always be ADDED to the index,
         // not subtracted.
         calcOffset = literalOrUnaryExpressionToNumber(
@@ -134,16 +210,49 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         if (body[0].expression.right.operator === '-')
           calcOffset = calcOffset * -1
 
-        context.stringDecoders.push({
+        let decFn = {
           identifier: node.id.name,
           offset: calcOffset,
-        })
-        /*console.log(
+          type: DecoderFunctionType.SIMPLE,
+        } as DecoderFunction
+
+        if (body.length >= 3) {
+          // possibly B64 type decoder
+          if (Guard.isIfStatement(body[2])) {
+            // check for B64 charset
+            if (
+              Guard.isBlockStatement(body[2].consequent) &&
+              body[2].consequent.body.length === 2 &&
+              Guard.isVariableDeclaration(body[2].consequent.body[0]) &&
+              Guard.isFunctionExpression(
+                body[2].consequent.body[0].declarations[0].init!
+              )
+            ) {
+              let fx = body[2].consequent.body[0].declarations[0].init,
+                fxb = fx.body.body
+              if (Guard.isVariableDeclaration(fxb[0])) {
+                if (Guard.isLiteralString(fxb[0].declarations[0].init!)) {
+                  let charset = fxb[0].declarations[0].init.value
+                  if (charset.length === 65) {
+                    // charset declaration
+                    decFn.type = DecoderFunctionType.BASE64
+                    ;(decFn as DecoderFunctionBase64).charset = charset
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        context.stringDecoders.push(decFn)
+        console.log(
           'Found decoder function',
           node.id?.name,
           'offset =',
-          calcOffset
-        )*/
+          calcOffset,
+          'type =',
+          decFn.type
+        )
       },
     })
     return this
@@ -151,7 +260,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
   // Locate push/shift pair inside IIFE
   shiftFinder(context: Context) {
-    const { decodeSimple } = this
+    const { util_decode } = this
     walk(context.ast, {
       ExpressionStatement(node) {
         if (
@@ -175,18 +284,6 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
         if (node.expression.arguments[1].type !== 'Literal') return
         const breakCond = node.expression.arguments[1].value
-
-        // make finding identifiers that reference another ident into a
-        // global utility method?
-        const decoder = context.stringDecoders[0]
-        const decFnId = (
-          body[0].declarations.find(
-            (d) =>
-              d.init?.type === 'Identifier' &&
-              d.init.name === decoder.identifier
-          )?.id as Identifier
-        ).name
-        if (!decFnId) return
 
         const pic = body[1].body.body[0].block.body[0].declarations[0].init
         if (pic?.type !== 'BinaryExpression') return
@@ -221,17 +318,33 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
                 node.callee.name !== 'parseInt'
               )
                 return
+              let decRef = -1
               if (
                 node.arguments.length !== 1 ||
                 node.arguments[0].type !== 'CallExpression' ||
                 node.arguments[0].callee.type !== 'Identifier' ||
-                node.arguments[0].callee.name !== decFnId ||
+                /*(decRef = context.stringDecoderReferences.findIndex(
+                  // typescript wtf
+                  (d) =>
+                    d.identifier ===
+                    (
+                      (node.arguments[0] as CallExpression)
+                        .callee! as Identifier
+                    ).name
+                )) === -1 ||*/
                 node.arguments[0].arguments.length !== 1
               )
                 return
               if (node.arguments[0].arguments[0].type !== 'Literal') return
               let idx = node.arguments[0].arguments[0].value as number
-              let val = parseInt(decodeSimple(context, idx, decoder.offset))
+              let val = -1
+              try {
+                val = parseInt(
+                  util_decode(context, node.arguments[0].callee.name, idx)
+                )
+              } catch (err) {
+                return
+              }
               if (isNaN(val)) {
                 sp<Identifier>(node, {
                   type: 'Identifier',
@@ -275,22 +388,22 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
   referenceFinder(context: Context) {
     walk(context.ast, {
       VariableDeclaration(node) {
-        if (
-          node.declarations[0].init?.type !== 'Identifier' ||
-          node.declarations[0].id.type !== 'Identifier'
-        )
-          return
-        let refName = node.declarations[0].id.name,
-          valName = node.declarations[0].init.name
-        let foundDecoder = context.stringDecoders.find(
-          (d) => d.identifier === valName
-        )
-        if (!foundDecoder) return
-        context.stringDecoderReferences.push({
-          identifier: refName,
-          realIdentifier: valName,
-          additionalOffset: 0,
-        })
+        for (const decl of node.declarations) {
+          if (decl.init?.type !== 'Identifier' || decl.id.type !== 'Identifier')
+            return
+          let refName = decl.id.name,
+            valName = decl.init.name
+          let foundDecoder = context.stringDecoders.find(
+            (d) => d.identifier === valName
+          )
+          if (!foundDecoder) return
+          //console.log('REF found', refName, valName)
+          context.stringDecoderReferences.push({
+            identifier: refName,
+            realIdentifier: valName,
+            additionalOffset: 0,
+          })
+        }
       },
     })
     return this
@@ -298,7 +411,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
   // Decode everything
   decoder(context: Context) {
-    const { decodeSimple } = this
+    const { util_decode } = this
 
     walk(context.ast, {
       CallExpression(node) {
@@ -311,7 +424,17 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
           return
 
         const name = node.callee.name
-        let foundRef = context.stringDecoderReferences.find(
+        try {
+          let idx = node.arguments[0].value
+          let val = util_decode(context, name, idx)
+          sp<Literal>(node, {
+            type: 'Literal',
+            value: val,
+          })
+        } catch (err) {
+          return
+        }
+        /*let foundRef = context.stringDecoderReferences.find(
           (ref) => ref.identifier === name
         )
         if (!foundRef) return // not a string decode call
@@ -320,17 +443,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         let foundDec = context.stringDecoders.find(
           (dec) => dec.identifier === foundRef!.realIdentifier
         )
-        if (!foundDec) return
-
-        let idx = node.arguments[0].value
-        sp<Literal>(node, {
-          type: 'Literal',
-          value: decodeSimple(
-            context,
-            idx,
-            foundDec.offset + foundRef.additionalOffset
-          ),
-        })
+        if (!foundDec) return*/
       },
     })
     return this
@@ -339,8 +452,8 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
   public async transform(context: Context) {
     this.stringsFinder(context)
       .funcFinder(context)
-      .shiftFinder(context)
       .referenceFinder(context)
+      .shiftFinder(context)
       .decoder(context)
   }
 }

@@ -22,6 +22,7 @@ import {
   BinaryExpression,
   CallExpression,
   MemberExpression,
+  IfStatement,
 } from './types'
 
 export function isPrivateIdentifier(node: Node): node is PrivateIdentifier {
@@ -101,4 +102,8 @@ export function isBinaryExpression(node: Node): node is BinaryExpression {
 
 export function isMemberExpression(node: Node): node is MemberExpression {
   return node.type === 'MemberExpression'
+}
+
+export function isIfStatement(node: Node): node is IfStatement {
+  return node.type === 'IfStatement'
 }
