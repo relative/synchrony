@@ -22,7 +22,10 @@ yargs.usage('$0 <cmd> [args]').command(
         deobfuscator.loadTransformers().then(() => {
           // ready
           deobfuscator.deobfuscateSource(source).then((source) => {
-            fs.writeFile(abs + '.c.js', source, 'utf8', (err) => {
+            let ext = path.extname(abs)
+            let newFilename =
+              abs.substring(0, abs.length - ext.length) + '.cleaned' + ext
+            fs.writeFile(newFilename, source, 'utf8', (err) => {
               if (err) return console.error('Failed to write file', err.code)
             })
           })
