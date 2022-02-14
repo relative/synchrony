@@ -245,14 +245,14 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         }
 
         context.stringDecoders.push(decFn)
-        console.log(
+        /*console.log(
           'Found decoder function',
           node.id?.name,
           'offset =',
           calcOffset,
           'type =',
           decFn.type
-        )
+        )*/
       },
     })
     return this
@@ -297,11 +297,9 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         while (true) {
           iteration++
           if (iteration > maxLoops) {
-            console.log(
-              'Push/shift calculation failed',
-              `(iter=${iteration}>maxLoops=${maxLoops})`
+            throw new Error(
+              `Push/shift calculation failed (iter=${iteration}>maxLoops=${maxLoops})`
             )
-            break
           }
           // Classes suck
           const bpic = immutate(pic)
