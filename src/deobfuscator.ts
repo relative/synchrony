@@ -5,6 +5,7 @@ import fs from 'fs'
 import Transformer from './transformers/transformer'
 import { Program } from './util/types'
 import Context from './context'
+import prettier from 'prettier'
 const FILE_REGEX = /(?<!\.d)\.[mc]?[jt]s$/i // cjs, mjs, js, ts, but no .d.ts
 
 // TODO: remove this when https://github.com/acornjs/acorn/commit/a4a5510 lands
@@ -121,14 +122,22 @@ export class Deobfuscator {
     _options?: Partial<DeobfuscateOptions>
   ): Promise<string> {
     const options = this.buildOptions(_options)
-    let ast = acorn.parse(source, {
+    let acornOptions: acorn.Options = {
       ecmaVersion: options.ecmaVersion,
-    }) as Program
+    }
+    let ast = acorn.parse(source, acornOptions) as Program
 
     // perform transforms
     ast = await this.deobfuscateNode(ast, options)
 
     source = escodegen.generate(ast)
+    source = prettier.format(source, {
+      semi: false,
+      singleQuote: true,
+      parser(text, opts) {
+        return acorn.parse(text, acornOptions)
+      },
+    })
     return source
   }
 }
