@@ -36,7 +36,7 @@ export default class Simplify extends Transformer<SimplifyOptions> {
         ) {
           return {
             type: 'Literal',
-            value: unaryExpressionToNumber(node), // should error on strings lmao
+            value: unaryExpressionToNumber(node, true),
             operator: undefined,
             prefix: undefined,
           }

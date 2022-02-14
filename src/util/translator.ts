@@ -7,9 +7,12 @@ export function unaryExpressionToNumber(
 ): number {
   if (node.argument.type !== 'Literal')
     throw new TypeError('UnaryExpression argument is not Literal')
-  if (typeof node.argument.value !== 'number')
+  if (typeof node.argument.value !== 'number' && !pi)
     throw new TypeError('UnaryExpression argument value is not number')
-  let num = node.argument.value as number
+
+  let num = pi
+    ? parseInt(node.argument.value as string)
+    : (node.argument.value as number)
   if (node.operator === '-') num = num * -1
   return num
 }
@@ -21,7 +24,7 @@ export function literalOrUnaryExpressionToNumber(
   if (Guard.isLiteralNumeric(node)) {
     return node.value
   } else if (Guard.isLiteralString(node) && pi) {
-    return parseInt(node.value, 10)
+    return parseInt(node.value)
   } else if (Guard.isUnaryExpression(node)) {
     return unaryExpressionToNumber(node, pi)
   }

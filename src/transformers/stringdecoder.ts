@@ -38,7 +38,11 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
     array: Node[]
   ): (string | number | undefined)[] {
     return array.map((n) =>
-      Guard.isLiteral(n) ? (n.value as string | number) : undefined
+      Guard.isUnaryExpression(n)
+        ? literalOrUnaryExpressionToNumber(n, true)
+        : Guard.isLiteral(n)
+        ? (n.value as string | number)
+        : undefined
     )
   }
 
@@ -99,7 +103,10 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
     // """type safety"""
     let decoder: DecoderFunction,
       offset = 0,
+      indexArg = 0,
+      keyArg = 1,
       decRef = -1
+
     let predicate = (dec: DecoderFunction | DecoderReference) =>
       dec.identifier === identifier
     if (context.stringDecoders.findIndex(predicate) !== -1) {
@@ -107,25 +114,30 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
     } else if (
       (decRef = context.stringDecoderReferences.findIndex(predicate)) !== -1
     ) {
-      identifier = context.stringDecoderReferences[decRef].realIdentifier
-      offset += context.stringDecoderReferences[decRef].additionalOffset
+      let ref = context.stringDecoderReferences[decRef]
+      identifier = ref.realIdentifier
+      offset += ref.additionalOffset
       decoder = context.stringDecoders.find(predicate)!
+      if (typeof ref.indexArgument === 'number') indexArg = ref.indexArgument
+      if (typeof ref.keyArgument === 'number') keyArg = ref.keyArgument
     } else {
       throw new TypeError(`Failed to decode ${identifier}, no decoder`)
     }
+
     offset += decoder.offset
-    // TODO: scanning for function wrappers
     let index =
-        typeof args[0] === 'string' ? parseInt(args[0]) : (args[0] as number),
+        typeof args[indexArg] === 'string'
+          ? parseInt(args[indexArg] as string)
+          : (args[indexArg] as number),
       key = ''
+
     switch (decoder.type) {
       case DecoderFunctionType.SIMPLE:
         return this.decodeSimple(context, index, offset)
       case DecoderFunctionType.BASE64:
         return this.decodeBase64(context, identifier, index, offset)
       case DecoderFunctionType.RC4:
-        // TODO: scanning for function wrappers
-        key = args[1] as string
+        key = args[keyArg] as string
         return this.decodeRC4(context, identifier, index, key, offset)
       default:
         throw new TypeError('Invalid decoder function type')
@@ -208,7 +220,9 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
           (e) => e.value
         )
         context.stringArrayIdentifier = fnId
-
+        if (context.removeGarbage) {
+          ;(node as any).type = 'EmptyStatement'
+        }
         /*console.log(
           'Found string array at',
           fnId,
@@ -275,6 +289,8 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
           identifier: node.id.name,
           offset: calcOffset,
           type: DecoderFunctionType.SIMPLE,
+          indexArgument: 0,
+          keyArgument: 1,
         } as DecoderFunction
 
         if (body.length >= 3) {
@@ -333,6 +349,9 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         }
 
         context.stringDecoders.push(decFn)
+        if (context.removeGarbage) {
+          ;(node as any).type = 'EmptyStatement'
+        }
         /*console.log(
           'Found decoder function',
           node.id?.name,
@@ -357,23 +376,23 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         )
           return
 
-        const body = node.expression.callee.body.body
+        const body = node.expression.callee.body.body,
+          bRev = [...body].reverse()
         if (
-          body.length !== 2 ||
-          body[0].type !== 'VariableDeclaration' ||
-          body[1].type !== 'WhileStatement' ||
-          !Guard.isBlockStatement(body[1].body) ||
-          body[1].body.body.length !== 1 ||
-          body[1].body.body[0].type !== 'TryStatement' ||
-          body[1].body.body[0].block.body.length !== 2 ||
-          body[1].body.body[0].block.body[0].type !== 'VariableDeclaration'
+          body.length < 2 ||
+          //bRev[1].type !== 'VariableDeclaration' || // multiple wrappers break this check
+          bRev[0].type !== 'WhileStatement' ||
+          !Guard.isBlockStatement(bRev[0].body) ||
+          bRev[0].body.body.length !== 1 ||
+          bRev[0].body.body[0].type !== 'TryStatement' ||
+          bRev[0].body.body[0].block.body.length !== 2 ||
+          bRev[0].body.body[0].block.body[0].type !== 'VariableDeclaration'
         )
           return
-
         if (node.expression.arguments[1].type !== 'Literal') return
         const breakCond = node.expression.arguments[1].value
 
-        const pic = body[1].body.body[0].block.body[0].declarations[0].init
+        const pic = bRev[0].body.body[0].block.body[0].declarations[0].init
         if (pic?.type !== 'BinaryExpression') return
 
         let st = new Simplify({})
@@ -404,15 +423,21 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
                 node.callee.name !== 'parseInt'
               )
                 return
+
               if (
                 node.arguments.length !== 1 ||
                 node.arguments[0].type !== 'CallExpression' ||
                 node.arguments[0].callee.type !== 'Identifier' ||
                 node.arguments[0].arguments.length === 0 ||
-                node.arguments[0].arguments.length > 4
+                node.arguments[0].arguments.length > 5
               )
                 return
-              if (node.arguments[0].arguments[0].type !== 'Literal') return
+
+              if (
+                node.arguments[0].arguments[0].type !== 'Literal' &&
+                node.arguments[0].arguments[0].type !== 'UnaryExpression'
+              )
+                return
               let val = -1
               try {
                 let args = literals_to_arg_array(node.arguments[0].arguments)
@@ -451,6 +476,9 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
           }
         }
 
+        if (context.removeGarbage) {
+          ;(node as any).type = 'EmptyStatement'
+        }
         /*console.log(
           'Found push/shift IIFE decFnId =',
           decFnId,
@@ -462,11 +490,12 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
     return this
   }
 
-  // Scan for references to the decoder functions
-  referenceFinder(context: Context) {
+  // Scan for variable references to the decoder functions
+  varReferenceFinder(context: Context) {
     walk(context.ast, {
-      VariableDeclaration(node) {
-        for (const decl of node.declarations) {
+      VariableDeclaration(vd) {
+        let rm: string[] = []
+        for (const decl of vd.declarations) {
           if (decl.init?.type !== 'Identifier' || decl.id.type !== 'Identifier')
             continue
           let refName = decl.id.name,
@@ -481,7 +510,127 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
             realIdentifier: valName,
             additionalOffset: 0,
           })
+          if (context.removeGarbage) {
+            rm.push(`${decl.start}!${decl.end}`)
+          }
         }
+        vd.declarations = vd.declarations.filter(
+          (d) => !rm.includes(`${d.start}!${d.end}`)
+        )
+        if (vd.declarations.length === 0) {
+          // this node wont generate if it has no declarations left
+          ;(vd as any).type = 'EmptyStatement'
+        }
+      },
+    })
+    return this
+  }
+
+  // Scan for function references to the decoder functions and their references
+  fnReferenceFinder(context: Context) {
+    walk(context.ast, {
+      FunctionDeclaration(node) {
+        if (
+          !node.id ||
+          node.body.body.length !== 1 ||
+          !Guard.isReturnStatement(node.body.body[0]) ||
+          !node.params.every((p) => Guard.isIdentifier(p)) ||
+          !node.body.body[0].argument ||
+          !Guard.isCallExpression(node.body.body[0].argument) ||
+          !Guard.isIdentifier(node.body.body[0].argument.callee)
+        )
+          return
+        const fnId = node.id.name,
+          retn = node.body.body[0],
+          cx = node.body.body[0].argument!
+        const calleeId = (cx.callee as Identifier).name
+        let i = 0,
+          offset = 0,
+          indexArg = -1,
+          keyArg = -1
+
+        const parent = {
+          identifier: '',
+          indexArgument: -1,
+          keyArgument: -1,
+        }
+
+        const parentFn = context.stringDecoders.find(
+          (dec) => dec.identifier === calleeId
+        )
+        if (!parentFn) {
+          // check for ref
+          const ref = context.stringDecoderReferences.find(
+            (dec) => dec.identifier === calleeId
+          )
+          if (!ref) return
+          parent.identifier = ref.identifier
+          parent.indexArgument = ref.indexArgument!
+          parent.keyArgument = ref.keyArgument!
+        } else {
+          parent.identifier = parentFn.identifier
+          parent.indexArgument = parentFn.indexArgument
+          parent.keyArgument = parentFn.keyArgument
+        }
+
+        const params = (node.params as Identifier[]).map((id) => id.name),
+          args = cx.arguments
+
+        for (const arg of args) {
+          walk(arg, {
+            Identifier(ident) {
+              if (!params.includes(ident.name)) return
+              if (i === parent.indexArgument) {
+                indexArg = params.indexOf(ident.name)
+              } else if (i === parent.keyArgument) {
+                keyArg = params.indexOf(ident.name)
+              }
+            },
+            BinaryExpression(bx) {
+              let num = NaN
+              if (i !== parent.indexArgument) return
+              if (
+                Guard.isUnaryExpression(bx.left) ||
+                Guard.isLiteralNumeric(bx.left) ||
+                Guard.isLiteralString(bx.left)
+              ) {
+                num = literalOrUnaryExpressionToNumber(bx.left, true)
+              } else if (
+                Guard.isUnaryExpression(bx.right) ||
+                Guard.isLiteralNumeric(bx.right) ||
+                Guard.isLiteralString(bx.right)
+              ) {
+                num = literalOrUnaryExpressionToNumber(bx.right, true)
+              }
+              if (num === NaN) return
+              if (bx.operator === '-') num = num * -1
+              offset = num
+            },
+          })
+          ++i
+        }
+        context.stringDecoderReferences.push({
+          identifier: fnId,
+          realIdentifier: parent.identifier,
+          additionalOffset: offset,
+          indexArgument: indexArg,
+          keyArgument: keyArg,
+        })
+        if (context.removeGarbage) {
+          ;(node as any).type = 'EmptyStatement'
+        }
+        /*console.log(
+          'Found func ref id =',
+          fnId,
+          'offset =',
+          offset,
+          'index =',
+          indexArg,
+          'key =',
+          keyArg,
+          'parent =',
+          parent.identifier
+        )*/
       },
     })
     return this
@@ -496,13 +645,19 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         if (
           node.callee.type !== 'Identifier' ||
           node.arguments.length === 0 ||
-          node.arguments.length > 4 ||
-          node.arguments[0].type === 'SpreadElement' ||
-          !Guard.isLiteral(node.arguments[0])
+          node.arguments.length > 5 ||
+          node.arguments[0].type === 'SpreadElement'
+        )
+          return
+
+        if (
+          node.arguments[0].type !== 'Literal' &&
+          node.arguments[0].type !== 'UnaryExpression'
         )
           return
 
         const name = node.callee.name
+        if (name === 'parseInt') return
         try {
           let args = literals_to_arg_array(node.arguments)
           let val = util_decode(context, name, args)
@@ -510,8 +665,9 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
             type: 'Literal',
             value: val,
           })
-        } catch (err) {
-          return
+        } catch (err: any) {
+          if (err.toString().includes('no decoder')) return
+          throw err
         }
         /*let foundRef = context.stringDecoderReferences.find(
           (ref) => ref.identifier === name
@@ -531,7 +687,8 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
   public async transform(context: Context) {
     this.stringsFinder(context)
       .funcFinder(context)
-      .referenceFinder(context)
+      .varReferenceFinder(context)
+      .fnReferenceFinder(context)
       .shiftFinder(context)
       .decoder(context)
   }
