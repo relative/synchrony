@@ -119,4 +119,8 @@ dist
 *.cleaned.js
 *.dev.js
 
+dist/
+
 scratch/
+!scratch/config.js
+!scratch/index.js
