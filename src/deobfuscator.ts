@@ -98,6 +98,7 @@ export class Deobfuscator {
     let transformers = this.buildTransformerList([
       ['Simplify', {}],
       ['MemberExpressionCleaner', {}],
+      ['LiteralMap', {}],
 
       ['StringDecoder', {}],
 
