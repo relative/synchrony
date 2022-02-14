@@ -124,7 +124,7 @@ export default class Simplify extends Transformer<SimplifyOptions> {
     walk(ast, {
       Literal(node) {
         if (!Guard.isLiteralNumeric(node)) return
-        if (node.value > 0) return
+        if (node.value >= 0) return
         sp<NumericUnaryExpression>(node, {
           type: 'UnaryExpression',
           operator: '-',
