@@ -1,6 +1,7 @@
 import {
   Program,
   BlockStatement,
+  Node,
   sp,
   VariableDeclaration,
   ExpressionStatement,
@@ -20,6 +21,7 @@ import { immutate } from '../util/helpers'
 import Context, {
   DecoderFunction,
   DecoderFunctionBase64,
+  DecoderFunctionRC4,
   DecoderFunctionType,
   DecoderReference,
 } from '../context'
@@ -32,7 +34,14 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
     super('StringDecoder', options)
   }
 
-  private util_b64_decode(chars: string, str: string): string {
+  private literals_to_arg_array(
+    array: Node[]
+  ): (string | number | undefined)[] {
+    return array.map((n) =>
+      Guard.isLiteral(n) ? (n.value as string | number) : undefined
+    )
+  }
+  /*private util_b64_decode(chars: string, str: string): string {
     let buf = '',
       i = 0
     while (i < str.length) {
@@ -51,11 +60,60 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         (z ? String.fromCharCode(z) : '')
     }
     return buf
+  }*/
+  private util_b64_decode(chars: string, input: string): string {
+    let output = '',
+      tempEncStr = ''
+    for (
+      let bc = 0, bs = 0, buffer, idx = 0;
+      (buffer = input.charAt(idx++));
+      ~buffer && ((bs = bc % 4 ? bs * 64 + buffer : buffer), bc++ % 4)
+        ? (output += String.fromCharCode(255 & (bs >> ((-2 * bc) & 6))))
+        : 0
+    ) {
+      buffer = chars.indexOf(buffer)
+    }
+    for (let k = 0, length = output.length; k < length; k++) {
+      tempEncStr += '%' + ('00' + output.charCodeAt(k).toString(16)).slice(-2)
+    }
+    return decodeURIComponent(tempEncStr)
   }
+  private util_rc4_decode(chars: string, str: string, key: string): string {
+    // sorry
+    let s = [],
+      j = 0,
+      x,
+      output = ''
+
+    str = this.util_b64_decode(chars, str)
+
+    let i
+    for (i = 0; i < 256; i++) {
+      s[i] = i
+    }
+    for (i = 0; i < 256; i++) {
+      j = (j + s[i] + key.charCodeAt(i % key.length)) % 256
+      x = s[i]
+      s[i] = s[j]
+      s[j] = x
+    }
+    i = 0
+    j = 0
+    for (let y = 0; y < str.length; y++) {
+      i = (i + 1) % 256
+      j = (j + s[i]) % 256
+      x = s[i]
+      s[i] = s[j]
+      s[j] = x
+      output += String.fromCharCode(str.charCodeAt(y) ^ s[(s[i] + s[j]) % 256])
+    }
+    return output
+  }
+
   private util_decode = (
     context: Context,
     identifier: string,
-    index: number
+    args: (string | number | undefined)[]
   ) => {
     // """type safety"""
     let decoder: DecoderFunction,
@@ -72,16 +130,22 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
       offset += context.stringDecoderReferences[decRef].additionalOffset
       decoder = context.stringDecoders.find(predicate)!
     } else {
-      throw new TypeError(
-        `Failed to decode ${identifier}(${index}, ${offset}), no decoder`
-      )
+      throw new TypeError(`Failed to decode ${identifier}, no decoder`)
     }
     offset += decoder.offset
+    // TODO: scanning for function wrappers
+    let index =
+        typeof args[0] === 'string' ? parseInt(args[0]) : (args[0] as number),
+      key = ''
     switch (decoder.type) {
       case DecoderFunctionType.SIMPLE:
         return this.decodeSimple(context, index, offset)
       case DecoderFunctionType.BASE64:
         return this.decodeBase64(context, identifier, index, offset)
+      case DecoderFunctionType.RC4:
+        // TODO: scanning for function wrappers
+        key = args[1] as string
+        return this.decodeRC4(context, identifier, index, key, offset)
       default:
         throw new TypeError('Invalid decoder function type')
     }
@@ -104,6 +168,22 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         ) as DecoderFunctionBase64
       ).charset
     return this.util_b64_decode(charset, str)
+  }
+  decodeRC4(
+    context: Context,
+    identifier: string,
+    index: number,
+    key: string,
+    offset: number
+  ) {
+    let str = context.stringArray[index + offset],
+      charset = (
+        context.stringDecoders.find(
+          (d) =>
+            d.identifier === identifier && d.type === DecoderFunctionType.RC4
+        ) as DecoderFunctionRC4
+      ).charset
+    return this.util_rc4_decode(charset, str, key)
   }
 
   // Find the string array automatically
@@ -217,7 +297,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         } as DecoderFunction
 
         if (body.length >= 3) {
-          // possibly B64 type decoder
+          // possibly B64/RC4 type decoder
           if (Guard.isIfStatement(body[2])) {
             // check for B64 charset
             if (
@@ -237,6 +317,33 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
                     // charset declaration
                     decFn.type = DecoderFunctionType.BASE64
                     ;(decFn as DecoderFunctionBase64).charset = charset
+                  }
+                }
+              }
+            } else if (
+              Guard.isBlockStatement(body[2].consequent) &&
+              body[2].consequent.body.length === 3 &&
+              // b64
+              Guard.isVariableDeclaration(body[2].consequent.body[0]) &&
+              Guard.isFunctionExpression(
+                body[2].consequent.body[0].declarations[0].init!
+              ) &&
+              // rc4
+              Guard.isVariableDeclaration(body[2].consequent.body[1]) &&
+              Guard.isFunctionExpression(
+                body[2].consequent.body[1].declarations[0].init!
+              )
+            ) {
+              let fx = body[2].consequent.body[0].declarations[0].init,
+                fxb = fx.body.body
+              if (Guard.isVariableDeclaration(fxb[0])) {
+                if (Guard.isLiteralString(fxb[0].declarations[0].init!)) {
+                  let charset = fxb[0].declarations[0].init.value
+                  if (charset.length === 65) {
+                    // charset declaration
+
+                    decFn.type = DecoderFunctionType.RC4
+                    ;(decFn as DecoderFunctionRC4).charset = charset
                   }
                 }
               }
@@ -260,7 +367,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
   // Locate push/shift pair inside IIFE
   shiftFinder(context: Context) {
-    const { util_decode } = this
+    const { util_decode: util_decode_args, literals_to_arg_array } = this
     walk(context.ast, {
       ExpressionStatement(node) {
         if (
@@ -321,31 +428,21 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
                 node.arguments.length !== 1 ||
                 node.arguments[0].type !== 'CallExpression' ||
                 node.arguments[0].callee.type !== 'Identifier' ||
-                /*(decRef = context.stringDecoderReferences.findIndex(
-                  // typescript wtf
-                  (d) =>
-                    d.identifier ===
-                    (
-                      (node.arguments[0] as CallExpression)
-                        .callee! as Identifier
-                    ).name
-                )) === -1 ||*/
-                node.arguments[0].arguments.length !== 1
+                node.arguments[0].arguments.length === 0 ||
+                node.arguments[0].arguments.length > 4
               )
                 return
               if (node.arguments[0].arguments[0].type !== 'Literal') return
-              let idx =
-                typeof node.arguments[0].arguments[0].value === 'string'
-                  ? parseInt(node.arguments[0].arguments[0].value)
-                  : (node.arguments[0].arguments[0].value as number)
               let val = -1
               try {
+                let args = literals_to_arg_array(node.arguments[0].arguments)
                 val = parseInt(
-                  util_decode(context, node.arguments[0].callee.name, idx)
+                  util_decode_args(context, node.arguments[0].callee.name, args)
                 )
               } catch (err) {
                 return
               }
+
               if (isNaN(val)) {
                 sp<Identifier>(node, {
                   type: 'Identifier',
@@ -412,13 +509,14 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
   // Decode everything
   decoder(context: Context) {
-    const { util_decode } = this
+    const { util_decode: util_decode_args, literals_to_arg_array } = this
 
     walk(context.ast, {
       CallExpression(node) {
         if (
           node.callee.type !== 'Identifier' ||
-          node.arguments.length !== 1 ||
+          node.arguments.length === 0 ||
+          node.arguments.length > 4 ||
           node.arguments[0].type === 'SpreadElement' ||
           !Guard.isLiteral(node.arguments[0])
         )
@@ -426,12 +524,8 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
         const name = node.callee.name
         try {
-          let idx =
-            typeof node.arguments[0].value === 'string'
-              ? parseInt(node.arguments[0].value)
-              : (node.arguments[0].value as number)
-
-          let val = util_decode(context, name, idx)
+          let args = literals_to_arg_array(node.arguments)
+          let val = util_decode_args(context, name, args)
           sp<Literal>(node, {
             type: 'Literal',
             value: val,
