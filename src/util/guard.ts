@@ -1,6 +1,7 @@
-import { Node } from 'estree'
+import { Node as ENode } from 'estree'
 import {
   Expression,
+  Node as SNode,
   Literal,
   NumericLiteral,
   StringLiteral,
@@ -24,6 +25,8 @@ import {
   MemberExpression,
   IfStatement,
 } from './types'
+
+type Node = ENode | SNode
 
 export function isPrivateIdentifier(node: Node): node is PrivateIdentifier {
   return node.type === 'PrivateIdentifier'

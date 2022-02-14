@@ -27,6 +27,11 @@ export interface DecoderFunctionBase64 extends DecoderFunction {
   charset: string
 }
 
+export interface DecoderFunctionRC4 extends DecoderFunction {
+  type: DecoderFunctionType.RC4
+  charset: string
+}
+
 export interface DecoderReference {
   identifier: string
   realIdentifier: string

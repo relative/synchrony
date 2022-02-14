@@ -74,9 +74,9 @@ export function walk<TState>(
           })
       } catch (err: any) {
         console.error(
-          'Caught an error while attempting to run AST visitor!\n\n node =',
+          'Caught an error while attempting to run AST visitor!\n\nnode =',
           util.inspect(node, false, 4, true),
-          'err =',
+          '\nerr =',
           err.toString()
         )
       }
