@@ -1,0 +1,6 @@
+.gitignore
+src/
+scratch/
+.vscode/
+.github/
+tsconfig.json
