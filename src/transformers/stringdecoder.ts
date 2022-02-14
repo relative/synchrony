@@ -334,7 +334,10 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
               )
                 return
               if (node.arguments[0].arguments[0].type !== 'Literal') return
-              let idx = node.arguments[0].arguments[0].value as number
+              let idx =
+                typeof node.arguments[0].arguments[0].value === 'string'
+                  ? parseInt(node.arguments[0].arguments[0].value)
+                  : (node.arguments[0].arguments[0].value as number)
               let val = -1
               try {
                 val = parseInt(
@@ -417,13 +420,17 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
           node.callee.type !== 'Identifier' ||
           node.arguments.length !== 1 ||
           node.arguments[0].type === 'SpreadElement' ||
-          !Guard.isLiteralNumeric(node.arguments[0])
+          !Guard.isLiteral(node.arguments[0])
         )
           return
 
         const name = node.callee.name
         try {
-          let idx = node.arguments[0].value
+          let idx =
+            typeof node.arguments[0].value === 'string'
+              ? parseInt(node.arguments[0].value)
+              : (node.arguments[0].value as number)
+
           let val = util_decode(context, name, idx)
           sp<Literal>(node, {
             type: 'Literal',
