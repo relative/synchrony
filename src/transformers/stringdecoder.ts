@@ -404,7 +404,6 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
                 node.callee.name !== 'parseInt'
               )
                 return
-              let decRef = -1
               if (
                 node.arguments.length !== 1 ||
                 node.arguments[0].type !== 'CallExpression' ||
@@ -421,7 +420,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
                   util_decode(context, node.arguments[0].callee.name, args)
                 )
               } catch (err) {
-                return
+                throw err
               }
 
               if (isNaN(val)) {
@@ -469,13 +468,13 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
       VariableDeclaration(node) {
         for (const decl of node.declarations) {
           if (decl.init?.type !== 'Identifier' || decl.id.type !== 'Identifier')
-            return
+            continue
           let refName = decl.id.name,
             valName = decl.init.name
           let foundDecoder = context.stringDecoders.find(
             (d) => d.identifier === valName
           )
-          if (!foundDecoder) return
+          if (!foundDecoder) continue
           //console.log('REF found', refName, valName)
           context.stringDecoderReferences.push({
             identifier: refName,
