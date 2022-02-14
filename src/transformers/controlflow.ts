@@ -60,61 +60,78 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
 
         if (context.controlFlowStorageNodes[bid]) return
         if (node.body.length === 0) return
-        if (!Guard.isVariableDeclaration(node.body[0])) return
-        for (const decl of node.body[0].declarations) {
-          if (!Guard.isIdentifier(decl.id)) return
-          if (decl.init?.type !== 'ObjectExpression') continue
-          if (
-            !decl.init.properties.every(
-              (p) =>
-                p.type !== 'SpreadElement' &&
-                ['FunctionExpression', 'Literal'].includes(p.value.type) &&
-                p.key.type === 'Literal'
-            )
-          )
-            continue
-          context.controlFlowStorageNodes[bid] = {
-            identifier: decl.id.name,
-            functions: [],
-            literals: [],
-          }
-          const cfsn = context.controlFlowStorageNodes[bid]
 
-          for (const prop of decl.init.properties as PropertyLiteral[]) {
-            let key = prop.key.value! as string,
-              i = -1
-            if (Guard.isLiteral(prop.value)) {
+        walk(node, {
+          VariableDeclaration(vd) {
+            let rm: string[] = []
+            for (const decl of vd.declarations) {
+              if (!Guard.isIdentifier(decl.id)) continue
+              if (decl.init?.type !== 'ObjectExpression') continue
               if (
-                (i = cfsn.literals.findIndex((l) => l.identifier === key)) !==
-                -1
-              ) {
-                // exists
-                cfsn.literals[i].value = prop.value.value as string
-              } else {
-                cfsn.literals.push({
-                  identifier: key,
-                  value: prop.value.value as string,
-                })
+                !decl.init.properties.every(
+                  (p) =>
+                    p.type !== 'SpreadElement' &&
+                    ['FunctionExpression', 'Literal'].includes(p.value.type) &&
+                    p.key.type === 'Literal'
+                )
+              )
+                continue
+              context.controlFlowStorageNodes[bid] = {
+                identifier: decl.id.name,
+                functions: [],
+                literals: [],
               }
-            } else if (Guard.isFunctionExpression(prop.value)) {
-              if (prop.value.body.body.length !== 1) continue
-              if (!Guard.isReturnStatement(prop.value.body.body[0])) continue
+              const cfsn = context.controlFlowStorageNodes[bid]
+              for (const prop of decl.init.properties as PropertyLiteral[]) {
+                let key = prop.key.value! as string,
+                  i = -1
+                if (Guard.isLiteral(prop.value)) {
+                  if (
+                    (i = cfsn.literals.findIndex(
+                      (l) => l.identifier === key
+                    )) !== -1
+                  ) {
+                    // exists
+                    cfsn.literals[i].value = prop.value.value as string
+                  } else {
+                    cfsn.literals.push({
+                      identifier: key,
+                      value: prop.value.value as string,
+                    })
+                  }
+                } else if (Guard.isFunctionExpression(prop.value)) {
+                  if (prop.value.body.body.length !== 1) continue
+                  if (!Guard.isReturnStatement(prop.value.body.body[0]))
+                    continue
 
-              if (
-                (i = cfsn.functions.findIndex((f) => f.identifier === key)) !==
-                -1
-              ) {
-                // exists
-                cfsn.functions[i].node = prop.value
-              } else {
-                cfsn.functions.push({
-                  identifier: key,
-                  node: prop.value,
-                })
+                  if (
+                    (i = cfsn.functions.findIndex(
+                      (f) => f.identifier === key
+                    )) !== -1
+                  ) {
+                    // exists
+                    cfsn.functions[i].node = prop.value
+                  } else {
+                    cfsn.functions.push({
+                      identifier: key,
+                      node: prop.value,
+                    })
+                  }
+                }
+              }
+              if (context.removeGarbage) {
+                rm.push(`${decl.start}!${decl.end}`)
               }
             }
-          }
-        }
+            vd.declarations = vd.declarations.filter(
+              (d) => !rm.includes(`${d.start}!${d.end}`)
+            )
+            if (vd.declarations.length === 0) {
+              // this node wont generate if it has no declarations left
+              ;(vd as any).type = 'EmptyStatement'
+            }
+          },
+        })
       },
     })
     return this

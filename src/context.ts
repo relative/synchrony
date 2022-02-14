@@ -16,6 +16,8 @@ export interface DecoderFunction {
   identifier: string
   type: DecoderFunctionType
   offset: number
+  indexArgument: number
+  keyArgument: number
 }
 
 export interface DecoderFunctionSimple extends DecoderFunction {
@@ -36,6 +38,10 @@ export interface DecoderReference {
   identifier: string
   realIdentifier: string
   additionalOffset: number
+
+  // if the wrapper is a function
+  indexArgument?: number
+  keyArgument?: number
 }
 
 interface ControlFlowFunction {
@@ -63,6 +69,8 @@ export default class Context {
   controlFlowStorageNodes: {
     [x: BlockId]: ControlFlowStorage
   } = {}
+
+  removeGarbage: boolean = true
 
   constructor(ast: Program) {
     this.ast = ast

@@ -10,40 +10,50 @@ export default class LiteralMap extends Transformer<LiteralMapOptions> {
     super('LiteralMap', options)
   }
 
-  demap(ast: Program) {
-    walk(ast, {
+  demap(context: Context) {
+    walk(context.ast, {
       BlockStatement(node) {
         const map: { [x: string]: { [x: string]: any } } = {}
 
         walk(node, {
-          VariableDeclarator(decl) {
-            if (
-              !decl.init ||
-              decl.init.type !== 'ObjectExpression' ||
-              !Guard.isIdentifier(decl.id)
-            )
-              return
-            if (
-              !decl.init.properties.every(
-                (p) =>
-                  p.type !== 'SpreadElement' &&
-                  (Guard.isLiteral(p.key) || Guard.isIdentifier(p.key)) &&
-                  Guard.isLiteral(p.value)
+          VariableDeclaration(vd) {
+            let rm: string[] = []
+            for (const decl of vd.declarations) {
+              if (
+                !decl.init ||
+                decl.init.type !== 'ObjectExpression' ||
+                !Guard.isIdentifier(decl.id)
               )
-            )
-              return
+                continue
+              if (
+                !decl.init.properties.every(
+                  (p) =>
+                    p.type !== 'SpreadElement' &&
+                    (Guard.isLiteral(p.key) || Guard.isIdentifier(p.key)) &&
+                    Guard.isLiteral(p.value)
+                )
+              )
+                continue
 
-            const name = decl.id.name
-            map[name] = map[name] || {}
+              const name = decl.id.name
+              map[name] = map[name] || {}
 
-            for (const _prop of decl.init.properties) {
-              const prop = _prop as Property
-              let key =
-                prop.key.type === 'Identifier'
-                  ? prop.key.name
-                  : ((prop.key as Literal).value as string)
-              map[name][key] = (prop.value as Literal).value as string
+              for (const _prop of decl.init.properties) {
+                const prop = _prop as Property
+                let key =
+                  prop.key.type === 'Identifier'
+                    ? prop.key.name
+                    : ((prop.key as Literal).value as string)
+                map[name][key] = (prop.value as Literal).value as string
+              }
+
+              if (context.removeGarbage) {
+                rm.push(`${decl.start}!${decl.end}`)
+              }
             }
+            vd.declarations = vd.declarations.filter(
+              (d) => !rm.includes(`${d.start}!${d.end}`)
+            )
           },
         })
 
@@ -62,7 +72,7 @@ export default class LiteralMap extends Transformer<LiteralMapOptions> {
               ? exp.property.name
               : ((exp.property as Literal).value as string)
             let val = mapObj[key]
-            if (!val) return
+            if (typeof val === 'undefined') return // ! check causes !0 == true.
             sp<Literal>(exp, {
               type: 'Literal',
               value: val,
@@ -76,6 +86,6 @@ export default class LiteralMap extends Transformer<LiteralMapOptions> {
   }
 
   public async transform(context: Context) {
-    this.demap(context.ast)
+    this.demap(context)
   }
 }
