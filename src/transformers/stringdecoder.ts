@@ -41,26 +41,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
       Guard.isLiteral(n) ? (n.value as string | number) : undefined
     )
   }
-  /*private util_b64_decode(chars: string, str: string): string {
-    let buf = '',
-      i = 0
-    while (i < str.length) {
-      let c = [
-        chars.indexOf(str.charAt(i++)),
-        chars.indexOf(str.charAt(i++)),
-        chars.indexOf(str.charAt(i++)),
-        chars.indexOf(str.charAt(i++)),
-      ]
-      let x = ((c[0] & 0x3f) << 2) | ((c[1] >> 4) & 0x3),
-        y = ((c[1] & 0xf) << 4) | ((c[2] >> 2) & 0xf),
-        z = ((c[2] & 0x3) << 6) | (c[3] & 0x3f)
-      buf +=
-        String.fromCharCode(x) +
-        (y ? String.fromCharCode(y) : '') +
-        (z ? String.fromCharCode(z) : '')
-    }
-    return buf
-  }*/
+
   private util_b64_decode(chars: string, input: string): string {
     let output = '',
       tempEncStr = ''
