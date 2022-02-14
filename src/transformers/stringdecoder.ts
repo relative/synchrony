@@ -348,7 +348,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
   // Locate push/shift pair inside IIFE
   shiftFinder(context: Context) {
-    const { util_decode: util_decode_args, literals_to_arg_array } = this
+    const { util_decode, literals_to_arg_array } = this
     walk(context.ast, {
       ExpressionStatement(node) {
         if (
@@ -418,7 +418,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
               try {
                 let args = literals_to_arg_array(node.arguments[0].arguments)
                 val = parseInt(
-                  util_decode_args(context, node.arguments[0].callee.name, args)
+                  util_decode(context, node.arguments[0].callee.name, args)
                 )
               } catch (err) {
                 return
@@ -490,7 +490,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
   // Decode everything
   decoder(context: Context) {
-    const { util_decode: util_decode_args, literals_to_arg_array } = this
+    const { util_decode, literals_to_arg_array } = this
 
     walk(context.ast, {
       CallExpression(node) {
@@ -506,7 +506,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         const name = node.callee.name
         try {
           let args = literals_to_arg_array(node.arguments)
-          let val = util_decode_args(context, name, args)
+          let val = util_decode(context, name, args)
           sp<Literal>(node, {
             type: 'Literal',
             value: val,
