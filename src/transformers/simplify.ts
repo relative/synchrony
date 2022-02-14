@@ -1,4 +1,11 @@
-import { Program, NumericLiteral, Literal, sp } from '../util/types'
+import {
+  Program,
+  NumericLiteral,
+  Literal,
+  sp,
+  UnaryExpression,
+  NumericUnaryExpression,
+} from '../util/types'
 import Transformer from './transformer'
 import { walk } from '../util/walk'
 import * as Guard from '../util/guard'
@@ -111,10 +118,29 @@ export default class Simplify extends Transformer<SimplifyOptions> {
     return this
   }
 
+  fixup(ast: Node) {
+    // convert negative numlits to UnaryExpressions
+    // negative numlits cause error on codegen
+    walk(ast, {
+      Literal(node) {
+        if (!Guard.isLiteralNumeric(node)) return
+        if (node.value > 0) return
+        sp<NumericUnaryExpression>(node, {
+          type: 'UnaryExpression',
+          operator: '-',
+          prefix: true,
+          argument: { type: 'Literal', value: Math.abs(node.value) } as any,
+        })
+      },
+    })
+    return this
+  }
+
   public async transform(context: Context) {
     this.negativeString(context.ast)
       .stringConcat(context.ast)
       .math(context.ast)
       .truthyFalsy(context.ast)
+      .fixup(context.ast)
   }
 }
