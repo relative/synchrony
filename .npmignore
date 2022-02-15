@@ -1,5 +1,6 @@
 src/
 scratch/
+docs/
 .vscode/
 .github/
 tsconfig.json
