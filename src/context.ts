@@ -5,6 +5,13 @@ import {
   FunctionExpression,
   Program,
 } from './util/types'
+import { Transformer, TransformerOptions } from './transformers/transformer'
+import ControlFlow from './transformers/controlflow'
+import Desequence from './transformers/desequence'
+import LiteralMap from './transformers/literalmap'
+import MemberExpressionCleaner from './transformers/memberexpressioncleaner'
+import Simplify from './transformers/simplify'
+import StringDecoder from './transformers/stringdecoder'
 
 export enum DecoderFunctionType {
   SIMPLE,
@@ -60,6 +67,7 @@ interface ControlFlowStorage {
 
 export default class Context {
   ast: Program
+  source?: string
 
   stringArray: string[] = []
   stringArrayIdentifier?: string
@@ -71,8 +79,48 @@ export default class Context {
   } = {}
 
   removeGarbage: boolean = true
-
-  constructor(ast: Program) {
+  transformers: InstanceType<typeof Transformer>[]
+  constructor(
+    ast: Program,
+    transformers: [string, Partial<TransformerOptions>][],
+    source?: string
+  ) {
     this.ast = ast
+    this.transformers = this.buildTransformerList(transformers)
+
+    this.source = source
+  }
+
+  private buildTransformerList(
+    list: [string, Partial<TransformerOptions>][]
+  ): InstanceType<typeof Transformer>[] {
+    let transformers: InstanceType<typeof Transformer>[] = []
+    for (let [name, opt] of list) {
+      switch (name.toLowerCase()) {
+        case 'controlflow':
+          transformers.push(new ControlFlow(opt))
+          break
+        case 'desequence':
+          transformers.push(new Desequence(opt))
+          break
+        case 'literalmap':
+          transformers.push(new LiteralMap(opt))
+          break
+        case 'memberexpressioncleaner':
+          transformers.push(new MemberExpressionCleaner(opt))
+          break
+        case 'simplify':
+          transformers.push(new Simplify(opt))
+          break
+        case 'stringdecoder':
+          transformers.push(new StringDecoder(opt))
+          break
+        default:
+          throw new TypeError(
+            `Transformer "${name}" is invalid, it does not exist`
+          )
+      }
+    }
+    return transformers
   }
 }

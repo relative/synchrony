@@ -1,12 +1,12 @@
 import { Program, BlockStatement, sp } from '../util/types'
-import Transformer from './transformer'
+import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
 import * as Guard from '../util/guard'
 import Context from '../context'
 
-export interface DesqeuenceOptions {}
+export interface DesqeuenceOptions extends TransformerOptions {}
 export default class Desequence extends Transformer<DesqeuenceOptions> {
-  constructor(options: DesqeuenceOptions) {
+  constructor(options: Partial<DesqeuenceOptions>) {
     super('Desequence', options)
   }
 

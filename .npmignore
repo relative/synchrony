@@ -1,6 +1,8 @@
-.gitignore
 src/
 scratch/
 .vscode/
 .github/
 tsconfig.json
+.gitignore
+
+dist/tsconfig.tsbuildinfo

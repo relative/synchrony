@@ -6,7 +6,7 @@ import {
   UnaryExpression,
   NumericUnaryExpression,
 } from '../util/types'
-import Transformer from './transformer'
+import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
 import * as Guard from '../util/guard'
 
@@ -16,9 +16,9 @@ import { mathEval } from '../util/math'
 import Context from '../context'
 import { Node } from 'estree'
 
-export interface SimplifyOptions {}
+export interface SimplifyOptions extends TransformerOptions {}
 export default class Simplify extends Transformer<SimplifyOptions> {
-  constructor(options: SimplifyOptions) {
+  constructor(options: Partial<SimplifyOptions>) {
     super('Simplify', options)
   }
 

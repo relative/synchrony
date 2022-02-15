@@ -1,12 +1,12 @@
-import { Program, BlockStatement, sp, Property, Literal } from '../util/types'
-import Transformer from './transformer'
+import { sp, Property, Literal } from '../util/types'
+import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
 import * as Guard from '../util/guard'
 import Context from '../context'
 
-export interface LiteralMapOptions {}
+export interface LiteralMapOptions extends TransformerOptions {}
 export default class LiteralMap extends Transformer<LiteralMapOptions> {
-  constructor(options: LiteralMapOptions) {
+  constructor(options: Partial<LiteralMapOptions>) {
     super('LiteralMap', options)
   }
 

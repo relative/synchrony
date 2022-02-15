@@ -13,7 +13,7 @@ import {
   Literal,
   UnaryExpression,
 } from '../util/types'
-import Transformer from './transformer'
+import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
 import * as Guard from '../util/guard'
 import { immutate } from '../util/helpers'
@@ -28,9 +28,9 @@ import Context, {
 import { literalOrUnaryExpressionToNumber } from '../util/translator'
 import Simplify from './simplify'
 
-export interface StringDecoderOptions {}
+export interface StringDecoderOptions extends TransformerOptions {}
 export default class StringDecoder extends Transformer<StringDecoderOptions> {
-  constructor(options: StringDecoderOptions) {
+  constructor(options: Partial<StringDecoderOptions>) {
     super('StringDecoder', options)
   }
 
@@ -602,7 +602,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
               ) {
                 num = literalOrUnaryExpressionToNumber(bx.right, true)
               }
-              if (num === NaN) return
+              if (isNaN(num)) return
               if (bx.operator === '-') num = num * -1
               offset = num
             },

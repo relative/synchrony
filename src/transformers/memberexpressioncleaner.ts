@@ -1,5 +1,5 @@
 import { Program, Identifier, sp } from '../util/types'
-import Transformer from './transformer'
+import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
 import * as Guard from '../util/guard'
 import Context from '../context'
@@ -8,9 +8,9 @@ import Context from '../context'
 // will not match content-type
 const VALID_DOT_REGEX = /^[a-z][\w]*$/i
 
-export interface MemberExpressionCleanerOptions {}
+export interface MemberExpressionCleanerOptions extends TransformerOptions {}
 export default class MemberExpressionCleaner extends Transformer<MemberExpressionCleanerOptions> {
-  constructor(options: MemberExpressionCleanerOptions) {
+  constructor(options: Partial<MemberExpressionCleanerOptions>) {
     super('MemberExpressionCleaner', options)
   }
 

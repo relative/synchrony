@@ -9,15 +9,15 @@ import {
   FunctionExpression,
   Identifier,
 } from '../util/types'
-import Transformer from './transformer'
+import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
 import * as Guard from '../util/guard'
 import Context from '../context'
 import { immutate } from '../util/helpers'
 
-export interface ControlFlowOptions {}
+export interface ControlFlowOptions extends TransformerOptions {}
 export default class ControlFlow extends Transformer<ControlFlowOptions> {
-  constructor(options: ControlFlowOptions) {
+  constructor(options: Partial<ControlFlowOptions>) {
     super('ControlFlow', options)
   }
 

@@ -1,8 +1,6 @@
 import escodegen from 'escodegen'
 import * as acorn from 'acorn' // no, it cannot be a default import
-import path from 'path'
-import fs from 'fs'
-import Transformer from './transformers/transformer'
+import { Transformer } from './transformers/transformer'
 import { Program } from './util/types'
 import Context from './context'
 import prettier from 'prettier'
@@ -44,24 +42,6 @@ export class Deobfuscator {
     ecmaVersion: 'latest',
     customTransformers: [],
   }
-  private _transformers: typeof Transformer[] = []
-
-  constructor() {}
-
-  public async loadTransformers() {
-    const dir = path.join(__dirname, 'transformers')
-    let files = fs
-      .readdirSync(dir)
-      .filter(
-        (name) => name.match(FILE_REGEX) && !name.startsWith('transformer')
-      )
-
-    let transformers = (
-      await Promise.all(files.map((name) => import(path.join(dir, name))))
-    ).map((t) => t.default)
-
-    this._transformers = transformers
-  }
 
   private buildOptions(
     options: Partial<DeobfuscateOptions> = {}
@@ -69,34 +49,12 @@ export class Deobfuscator {
     return { ...this.defaultOptions, ...options }
   }
 
-  private buildTransformerList(list: [string, object][]): Transformer<any>[] {
-    let transformers: Transformer<any>[] = []
-    for (let [name, opt] of list) {
-      let found = this._transformers.find((t: any) => t.name === name)
-      if (!found) {
-        console.error(
-          'Invalid transformer in config',
-          name,
-          'it does not exist'
-        )
-        continue
-      }
-      transformers.push(new (found as any)(opt))
-    }
-    return transformers
-  }
-
   public async deobfuscateNode(
     node: Program,
     _options?: Partial<DeobfuscateOptions>
   ): Promise<Program> {
     const options = this.buildOptions(_options)
-    const context = new Context(node)
-    // perform transforms
-    /*let transformers = this._transformers.map(
-      (t: any) => new t({})
-    ) as Transformer<any>[]*/
-    let transformers = this.buildTransformerList([
+    const context = new Context(node, [
       ['Simplify', {}],
       ['MemberExpressionCleaner', {}],
       ['LiteralMap', {}],
@@ -110,7 +68,8 @@ export class Deobfuscator {
 
       ['Desequence', {}],
     ])
-    for (const t of transformers) {
+
+    for (const t of context.transformers) {
       console.log('Running', t.name, 'transformer')
       await t.transform(context)
     }
@@ -134,7 +93,7 @@ export class Deobfuscator {
     source = prettier.format(source, {
       semi: false,
       singleQuote: true,
-      parser(text, opts) {
+      parser(text, _opts) {
         return acorn.parse(text, acornOptions)
       },
     })

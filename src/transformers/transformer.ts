@@ -1,14 +1,19 @@
-import { Program } from '../util/types'
 import Context from '../context'
 
-export default class Transformer<T> {
+export interface TransformerOptions {
+  log: boolean
+}
+export abstract class Transformer<TOptions extends TransformerOptions> {
   name: string
-  options: T
+  options: TOptions
 
-  constructor(name: string, options: T) {
+  constructor(name: string, options: Partial<TOptions>) {
     this.name = name
-    this.options = options
+    this.options = this.buildOptions(options)
   }
 
-  public async transform(context: Context) {}
+  protected buildOptions(options: Partial<TOptions>): TOptions {
+    return { log: true, ...(options as any) }
+  }
+  public abstract transform(context: Context): Promise<void>
 }
