@@ -1,4 +1,4 @@
-import { Deobfuscator } from './deobfuscator'
-import { Transformer } from './transformers/transformer'
+import { Deobfuscator, DeobfuscateOptions } from './deobfuscator'
+import { Transformer, TransformerOptions } from './transformers/transformer'
 
-export { Deobfuscator, Transformer }
+export { Deobfuscator, DeobfuscateOptions, Transformer, TransformerOptions }
