@@ -29,12 +29,15 @@ type ecmaVersion =
   | 'latest'
 
 export interface DeobfuscateOptions {
+  /**
+   * ECMA version to use when parsing AST (see acorn, default = 'latest')
+   */
   ecmaVersion: ecmaVersion
 
   /**
    * Custom transformers to use
    */
-  customTransformers: Transformer<any>[]
+  customTransformers: typeof Transformer[]
 }
 
 export class Deobfuscator {

@@ -1,6 +1,9 @@
 import Context from '../context'
 
 export interface TransformerOptions {
+  /**
+   * Whether logging is enabled for this transformer (default = FALSE)
+   */
   log: boolean
 }
 export abstract class Transformer<TOptions extends TransformerOptions> {
