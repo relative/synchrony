@@ -39,9 +39,9 @@ npm install --global deobfuscator # alternatively, yarn global add deobfuscator,
 # 2. Get an obfuscated file
 curl https://gist.github.com/relative/79e392bced4b9bed8fd076f834e06dee/raw/obfuscated.js -o ./obfuscated.js
 
-# 4. Run deobfuscator
+# 3. Run deobfuscator
 synchrony deobfuscate ./obfuscated.js
 
-# 5. Check the reuslts of your debofuscation at script.cleaned.js
+# 4. Check the reuslts of your debofuscation at script.cleaned.js
 cat ./obfuscated.cleaned.js
 ```
