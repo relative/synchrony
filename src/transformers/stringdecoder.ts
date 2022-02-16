@@ -368,123 +368,142 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
   // Locate push/shift pair inside IIFE
   shiftFinder(context: Context) {
     const { util_decode, literals_to_arg_array } = this
+    // retn TRUE if remove .
+    function visitor(node: Node) {
+      if (
+        !Guard.isCallExpression(node) ||
+        node.callee.type !== 'FunctionExpression'
+      )
+        return false
+
+      const body = node.callee.body.body,
+        bRev = [...body].reverse()
+      if (
+        body.length < 2 ||
+        //bRev[1].type !== 'VariableDeclaration' || // multiple wrappers break this check
+        bRev[0].type !== 'WhileStatement' ||
+        !Guard.isBlockStatement(bRev[0].body) ||
+        bRev[0].body.body.length !== 1 ||
+        bRev[0].body.body[0].type !== 'TryStatement' ||
+        bRev[0].body.body[0].block.body.length !== 2 ||
+        bRev[0].body.body[0].block.body[0].type !== 'VariableDeclaration'
+      )
+        return
+      if (node.arguments[1].type !== 'Literal') return
+      const breakCond = node.arguments[1].value
+
+      const pic = bRev[0].body.body[0].block.body[0].declarations[0].init
+      if (pic?.type !== 'BinaryExpression') return
+
+      let st = new Simplify({})
+
+      // String eval loop
+      // push/shift should only have #size unique combinations I think
+      let maxLoops = context.stringArray.length * 2,
+        iteration = 0
+      while (true) {
+        iteration++
+        if (iteration > maxLoops) {
+          throw new Error(
+            `Push/shift calculation failed (iter=${iteration}>maxLoops=${maxLoops})`
+          )
+        }
+        // Classes suck
+        const bpic = immutate(pic)
+        let hasNaN = false
+
+        context.stringArray.push(context.stringArray.shift() as string)
+
+        // convert -?parseInt(strdec(idx)) / n [+*] $0 chain
+        walk(bpic, {
+          CallExpression(node) {
+            // find parseInts
+            if (
+              !Guard.isIdentifier(node.callee) ||
+              node.callee.name !== 'parseInt'
+            )
+              return
+
+            if (
+              node.arguments.length !== 1 ||
+              node.arguments[0].type !== 'CallExpression' ||
+              node.arguments[0].callee.type !== 'Identifier' ||
+              node.arguments[0].arguments.length === 0 ||
+              node.arguments[0].arguments.length > 5
+            )
+              return
+
+            if (
+              node.arguments[0].arguments[0].type !== 'Literal' &&
+              node.arguments[0].arguments[0].type !== 'UnaryExpression'
+            )
+              return
+            let val = -1
+            try {
+              let args = literals_to_arg_array(node.arguments[0].arguments)
+              val = parseInt(
+                util_decode(context, node.arguments[0].callee.name, args)
+              )
+            } catch (err) {
+              throw err
+            }
+
+            if (isNaN(val)) {
+              sp<Identifier>(node, {
+                type: 'Identifier',
+                name: 'NaN',
+              })
+              hasNaN = true
+            } else {
+              sp<Literal>(node, {
+                type: 'Literal',
+                value: val,
+              })
+            }
+          },
+        })
+
+        if (hasNaN) {
+          continue
+        } else {
+          // use our SimplifyTransformer to calculate end value
+          st.math(bpic)
+          if (
+            (bpic as any).type === 'Literal' &&
+            (bpic as Literal).value === breakCond
+          )
+            break
+        }
+      }
+
+      if (context.removeGarbage) {
+        return true
+      }
+      return false
+      /*console.log(
+        'Found push/shift IIFE decFnId =',
+        decFnId,
+        'breakCond =',
+        breakCond
+      )*/
+    }
     walk(context.ast, {
       ExpressionStatement(node) {
-        if (
-          !Guard.isCallExpression(node.expression) ||
-          node.expression.callee.type !== 'FunctionExpression'
-        )
-          return
-
-        const body = node.expression.callee.body.body,
-          bRev = [...body].reverse()
-        if (
-          body.length < 2 ||
-          //bRev[1].type !== 'VariableDeclaration' || // multiple wrappers break this check
-          bRev[0].type !== 'WhileStatement' ||
-          !Guard.isBlockStatement(bRev[0].body) ||
-          bRev[0].body.body.length !== 1 ||
-          bRev[0].body.body[0].type !== 'TryStatement' ||
-          bRev[0].body.body[0].block.body.length !== 2 ||
-          bRev[0].body.body[0].block.body[0].type !== 'VariableDeclaration'
-        )
-          return
-        if (node.expression.arguments[1].type !== 'Literal') return
-        const breakCond = node.expression.arguments[1].value
-
-        const pic = bRev[0].body.body[0].block.body[0].declarations[0].init
-        if (pic?.type !== 'BinaryExpression') return
-
-        let st = new Simplify({})
-
-        // String eval loop
-        // push/shift should only have #size unique combinations I think
-        let maxLoops = context.stringArray.length * 2,
-          iteration = 0
-        while (true) {
-          iteration++
-          if (iteration > maxLoops) {
-            throw new Error(
-              `Push/shift calculation failed (iter=${iteration}>maxLoops=${maxLoops})`
+        if (Guard.isSequenceExpression(node.expression)) {
+          let rm: string[] = []
+          for (const exp of node.expression.expressions) {
+            if (visitor(exp)) rm.push(`${exp.start}!${exp.end}`)
+          }
+          if (rm) {
+            node.expression.expressions = node.expression.expressions.filter(
+              (d) => !rm.includes(`${d.start}!${d.end}`)
             )
           }
-          // Classes suck
-          const bpic = immutate(pic)
-          let hasNaN = false
-
-          context.stringArray.push(context.stringArray.shift() as string)
-
-          // convert -?parseInt(strdec(idx)) / n [+*] $0 chain
-          walk(bpic, {
-            CallExpression(node) {
-              // find parseInts
-              if (
-                !Guard.isIdentifier(node.callee) ||
-                node.callee.name !== 'parseInt'
-              )
-                return
-
-              if (
-                node.arguments.length !== 1 ||
-                node.arguments[0].type !== 'CallExpression' ||
-                node.arguments[0].callee.type !== 'Identifier' ||
-                node.arguments[0].arguments.length === 0 ||
-                node.arguments[0].arguments.length > 5
-              )
-                return
-
-              if (
-                node.arguments[0].arguments[0].type !== 'Literal' &&
-                node.arguments[0].arguments[0].type !== 'UnaryExpression'
-              )
-                return
-              let val = -1
-              try {
-                let args = literals_to_arg_array(node.arguments[0].arguments)
-                val = parseInt(
-                  util_decode(context, node.arguments[0].callee.name, args)
-                )
-              } catch (err) {
-                throw err
-              }
-
-              if (isNaN(val)) {
-                sp<Identifier>(node, {
-                  type: 'Identifier',
-                  name: 'NaN',
-                })
-                hasNaN = true
-              } else {
-                sp<Literal>(node, {
-                  type: 'Literal',
-                  value: val,
-                })
-              }
-            },
-          })
-
-          if (hasNaN) {
-            continue
-          } else {
-            // use our SimplifyTransformer to calculate end value
-            st.math(bpic)
-            if (
-              (bpic as any).type === 'Literal' &&
-              (bpic as Literal).value === breakCond
-            )
-              break
+        } else {
+          if (visitor(node.expression)) {
+            ;(node as any).type = 'EmptyStatement'
           }
         }
-
-        if (context.removeGarbage) {
-          ;(node as any).type = 'EmptyStatement'
-        }
-        /*console.log(
-          'Found push/shift IIFE decFnId =',
-          decFnId,
-          'breakCond =',
-          breakCond
-        )*/
       },
     })
     return this
