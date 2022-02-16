@@ -71,5 +71,5 @@ esbuild
   })
   .then(() => postBuild())
   .catch((_err) => {
-    process.exit(1)
+    process_exit(1)
   })
