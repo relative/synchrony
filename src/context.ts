@@ -80,6 +80,10 @@ export default class Context {
 
   removeGarbage: boolean = true
   transformers: InstanceType<typeof Transformer>[]
+
+  // TODO: fix transformer options
+  enableLog: boolean = true
+
   constructor(
     ast: Program,
     transformers: [string, Partial<TransformerOptions>][],
@@ -89,6 +93,11 @@ export default class Context {
     this.transformers = this.buildTransformerList(transformers)
 
     this.source = source
+  }
+
+  public log(message?: any, ...optionalParams: any[]) {
+    if (!this.enableLog) return
+    console.log(message, ...optionalParams)
   }
 
   private buildTransformerList(

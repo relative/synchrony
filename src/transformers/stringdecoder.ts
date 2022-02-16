@@ -223,12 +223,12 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         if (context.removeGarbage) {
           ;(node as any).type = 'EmptyStatement'
         }
-        /*console.log(
+        context.log(
           'Found string array at',
           fnId,
           '#',
           context.stringArray.length
-        )*/
+        )
       },
     })
     return this
@@ -352,14 +352,14 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         if (context.removeGarbage) {
           ;(node as any).type = 'EmptyStatement'
         }
-        /*console.log(
+        context.log(
           'Found decoder function',
           node.id?.name,
           'offset =',
           calcOffset,
           'type =',
           decFn.type
-        )*/
+        )
       },
     })
     return this
@@ -476,16 +476,11 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         }
       }
 
+      context.log('Found push/shift IIFE breakCond =', breakCond)
       if (context.removeGarbage) {
         return true
       }
       return false
-      /*console.log(
-        'Found push/shift IIFE decFnId =',
-        decFnId,
-        'breakCond =',
-        breakCond
-      )*/
     }
     walk(context.ast, {
       ExpressionStatement(node) {
@@ -523,7 +518,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
             (d) => d.identifier === valName
           )
           if (!foundDecoder) continue
-          //console.log('REF found', refName, valName)
+          context.log('Found variable reference', refName, valName)
           context.stringDecoderReferences.push({
             identifier: refName,
             realIdentifier: valName,
@@ -638,7 +633,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         if (context.removeGarbage) {
           ;(node as any).type = 'EmptyStatement'
         }
-        /*console.log(
+        context.log(
           'Found func ref id =',
           fnId,
           'offset =',
@@ -649,7 +644,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
           keyArg,
           'parent =',
           parent.identifier
-        )*/
+        )
       },
     })
     return this
