@@ -69,7 +69,7 @@ export function isAssignmentExpression(
   return node.type === 'AssignmentExpression'
 }
 
-export function isReturnStatement(node: Statement): node is ReturnStatement {
+export function isReturnStatement(node: Node): node is ReturnStatement {
   return node.type === 'ReturnStatement'
 }
 

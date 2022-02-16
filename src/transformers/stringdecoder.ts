@@ -34,6 +34,11 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
     super('StringDecoder', options)
   }
 
+  // TODO: global utility method
+  private noEmptyStmt(nodes: Node[]): Node[] {
+    return nodes.filter((i) => i.type !== 'EmptyStatement')
+  }
+
   private literals_to_arg_array(
     array: Node[]
   ): (string | number | undefined)[] {
@@ -542,21 +547,23 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
   // Scan for function references to the decoder functions and their references
   fnReferenceFinder(context: Context) {
+    const { noEmptyStmt } = this
     walk(context.ast, {
       FunctionDeclaration(node) {
+        let body = noEmptyStmt(node.body.body)
         if (
           !node.id ||
-          node.body.body.length !== 1 ||
-          !Guard.isReturnStatement(node.body.body[0]) ||
+          body.length !== 1 ||
+          !Guard.isReturnStatement(body[0]) ||
           !node.params.every((p) => Guard.isIdentifier(p)) ||
-          !node.body.body[0].argument ||
-          !Guard.isCallExpression(node.body.body[0].argument) ||
-          !Guard.isIdentifier(node.body.body[0].argument.callee)
+          !body[0].argument ||
+          !Guard.isCallExpression(body[0].argument) ||
+          !Guard.isIdentifier(body[0].argument.callee)
         )
           return
         const fnId = node.id.name,
-          retn = node.body.body[0],
-          cx = node.body.body[0].argument!
+          retn = body[0],
+          cx = body[0].argument!
         const calleeId = (cx.callee as Identifier).name
         let i = 0,
           offset = 0,
