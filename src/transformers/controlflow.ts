@@ -74,6 +74,7 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
             for (const decl of vd.declarations) {
               if (!Guard.isIdentifier(decl.id)) continue
               if (decl.init?.type !== 'ObjectExpression') continue
+              if (decl.init.properties.length === 0) continue
               if (
                 !decl.init.properties.every(
                   (p) =>
