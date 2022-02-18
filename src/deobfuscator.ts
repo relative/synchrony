@@ -57,6 +57,8 @@ export class Deobfuscator {
     _options?: Partial<DeobfuscateOptions>
   ): Promise<Program> {
     const options = this.buildOptions(_options)
+
+    // TODO: fix control flow so its not duplicated 30 times
     const context = new Context(node, [
       ['Simplify', {}],
       ['MemberExpressionCleaner', {}],
@@ -68,8 +70,13 @@ export class Deobfuscator {
       ['MemberExpressionCleaner', {}],
 
       ['ControlFlow', {}],
-
+      ['ControlFlow', {}],
+      ['ControlFlow', {}],
+      ['ControlFlow', {}],
+      ['ControlFlow', {}],
       ['Desequence', {}],
+
+      ['MemberExpressionCleaner', {}],
     ])
 
     for (const t of context.transformers) {
@@ -93,13 +100,20 @@ export class Deobfuscator {
     ast = await this.deobfuscateNode(ast, options)
 
     source = escodegen.generate(ast)
-    source = prettier.format(source, {
-      semi: false,
-      singleQuote: true,
-      parser(text, _opts) {
-        return acorn.parse(text, acornOptions)
-      },
-    })
+    try {
+      source = prettier.format(source, {
+        semi: false,
+        singleQuote: true,
+
+        parser(text, _opts) {
+          return acorn.parse(text, acornOptions)
+        },
+      })
+    } catch (err) {
+      // I don't think we should log here, but throwing the error is not very
+      // important since it is non fatal
+    }
+
     return source
   }
 }

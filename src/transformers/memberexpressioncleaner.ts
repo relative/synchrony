@@ -18,7 +18,7 @@ export default class MemberExpressionCleaner extends Transformer<MemberExpressio
     walk(ast, {
       MemberExpression(node) {
         if (
-          !Guard.isIdentifier(node.object) ||
+          //!Guard.isIdentifier(node.object) ||
           Guard.isPrivateIdentifier(node.property) ||
           !Guard.isLiteralString(node.property)
         )

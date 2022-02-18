@@ -120,8 +120,22 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
       (decRef = context.stringDecoderReferences.findIndex(predicate)) !== -1
     ) {
       let ref = context.stringDecoderReferences[decRef]
-      identifier = ref.realIdentifier
       offset += ref.additionalOffset
+      let fndDec: DecoderReference | undefined = ref as any
+      identifier = ref.realIdentifier
+      while (fndDec) {
+        fndDec = context.stringDecoderReferences.find(predicate)
+        if (fndDec) {
+          context.log(
+            'Resolved parent ref id=',
+            identifier,
+            'found =',
+            fndDec.realIdentifier
+          )
+          offset += fndDec.additionalOffset
+          identifier = fndDec.realIdentifier
+        }
+      }
       decoder = context.stringDecoders.find(predicate)!
       if (typeof ref.indexArgument === 'number') indexArg = ref.indexArgument
       if (typeof ref.keyArgument === 'number') keyArg = ref.keyArgument
@@ -248,17 +262,16 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
         if (block.body.length !== 2) return
         if (!Guard.isVariableDeclaration(block.body[0])) return
+        let retn = block.body[block.body.length - 1]
         if (
-          !Guard.isReturnStatement(block.body[1]) ||
-          block.body[1].argument?.type !== 'SequenceExpression' ||
-          block.body[1].argument.expressions.length !== 2 ||
-          block.body[1].argument.expressions[0].type !==
-            'AssignmentExpression' ||
-          block.body[1].argument.expressions[0].left.type !== 'Identifier' ||
-          block.body[1].argument.expressions[0].left.name !== fnId ||
-          block.body[1].argument.expressions[0].right.type !==
-            'FunctionExpression' ||
-          block.body[1].argument.expressions[1].type !== 'CallExpression'
+          !Guard.isReturnStatement(retn) ||
+          retn.argument?.type !== 'SequenceExpression' ||
+          retn.argument.expressions.length !== 2 ||
+          retn.argument.expressions[0].type !== 'AssignmentExpression' ||
+          retn.argument.expressions[0].left.type !== 'Identifier' ||
+          retn.argument.expressions[0].left.name !== fnId ||
+          retn.argument.expressions[0].right.type !== 'FunctionExpression' ||
+          retn.argument.expressions[1].type !== 'CallExpression'
           // check callexp callee and args?
         )
           return
@@ -269,7 +282,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
             context.stringArrayIdentifier
         )
           return
-        const fn = block.body[1].argument.expressions[0].right,
+        const fn = retn.argument.expressions[0].right,
           fnParams = (fn.params as Identifier[]).map((id) => id.name)
         const body = fn.body.body as Statement[]
         let calcOffset = 0
@@ -324,7 +337,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
               }
             } else if (
               Guard.isBlockStatement(body[2].consequent) &&
-              body[2].consequent.body.length === 3 &&
+              body[2].consequent.body.length > 3 &&
               // b64
               Guard.isVariableDeclaration(body[2].consequent.body[0]) &&
               Guard.isFunctionExpression(
@@ -630,6 +643,8 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
           })
           ++i
         }
+        if (context.stringDecoderReferences.find((i) => i.identifier === fnId))
+          return
         context.stringDecoderReferences.push({
           identifier: fnId,
           realIdentifier: parent.identifier,
@@ -678,6 +693,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
           return
 
         const name = node.callee.name
+
         if (name === 'parseInt') return
         try {
           let args = literals_to_arg_array(node.arguments)
@@ -706,9 +722,15 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
   }
 
   public async transform(context: Context) {
+    // TODO: while loop that waits for fnReferenceFinder to return 0 (amount of references found)
+    //       ^ may have to do this for varReferenceFinder too if needed
     this.stringsFinder(context)
       .funcFinder(context)
       .varReferenceFinder(context)
+      .fnReferenceFinder(context)
+      .fnReferenceFinder(context)
+      .fnReferenceFinder(context)
+      .fnReferenceFinder(context)
       .fnReferenceFinder(context)
       .shiftFinder(context)
       .decoder(context)
