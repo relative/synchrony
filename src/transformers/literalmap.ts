@@ -18,6 +18,7 @@ export default class LiteralMap extends Transformer<LiteralMapOptions> {
         walk(node, {
           VariableDeclaration(vd) {
             let rm: string[] = []
+            if (vd.declarations.length === 0) return
             for (const decl of vd.declarations) {
               if (
                 !decl.init ||
