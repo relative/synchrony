@@ -21,6 +21,12 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
     super('ControlFlow', options)
   }
 
+  // TODO: global utility method
+  // Copied out of stringdecoder
+  private noEmptyStmt(nodes: Node[]): Node[] {
+    return nodes.filter((i) => i.type !== 'EmptyStatement')
+  }
+
   // maybe global util function
   private translateCallExp(fx: FunctionExpression, cx: CallExpression) {
     if (!Guard.isReturnStatement(fx.body.body[0]))
@@ -53,6 +59,7 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
   // separate finding literals/functions from each other?
   // current way makes code a bit confusing to follow ^^
   findStorageNode(context: Context) {
+    const { noEmptyStmt } = this
     walk(context.ast, {
       BlockStatement(node) {
         // /shrug
@@ -72,7 +79,7 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
                   (p) =>
                     p.type !== 'SpreadElement' &&
                     ['FunctionExpression', 'Literal'].includes(p.value.type) &&
-                    p.key.type === 'Literal'
+                    (p.key.type === 'Literal' || p.key.type === 'Identifier')
                 )
               )
                 continue
@@ -83,7 +90,10 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
               }
               const cfsn = context.controlFlowStorageNodes[bid]
               for (const prop of decl.init.properties as PropertyLiteral[]) {
-                let key = prop.key.value! as string,
+                let kn: Identifier | Literal = prop.key
+                let key = (
+                    Guard.isIdentifier(kn) ? kn.name : kn.value
+                  )! as string,
                   i = -1
                 if (Guard.isLiteral(prop.value)) {
                   if (
@@ -100,25 +110,34 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
                     })
                   }
                 } else if (Guard.isFunctionExpression(prop.value)) {
-                  if (prop.value.body.body.length !== 1) continue
-                  if (!Guard.isReturnStatement(prop.value.body.body[0]))
-                    continue
-
+                  let fnb = noEmptyStmt(prop.value.body.body)
+                  if (fnb.length !== 1) continue
+                  if (!Guard.isReturnStatement(fnb[0])) continue
+                  let imm = immutate(prop.value)
+                  imm.body.body = fnb
                   if (
                     (i = cfsn.functions.findIndex(
                       (f) => f.identifier === key
                     )) !== -1
                   ) {
                     // exists
-                    cfsn.functions[i].node = prop.value
+                    cfsn.functions[i].node = imm
                   } else {
                     cfsn.functions.push({
                       identifier: key,
-                      node: prop.value,
+                      node: imm,
                     })
                   }
                 }
               }
+              context.log(
+                'Found control flow node id =',
+                decl.id.name,
+                '#fn =',
+                cfsn.functions.length,
+                '#lit =',
+                cfsn.literals.length
+              )
               if (context.removeGarbage) {
                 rm.push(`${decl.start}!${decl.end}`)
               }
