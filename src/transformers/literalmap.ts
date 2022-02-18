@@ -18,7 +18,6 @@ export default class LiteralMap extends Transformer<LiteralMapOptions> {
         walk(node, {
           VariableDeclaration(vd) {
             let rm: string[] = []
-            if (vd.declarations.length === 0) return
             for (const decl of vd.declarations) {
               if (
                 !decl.init ||
@@ -26,6 +25,7 @@ export default class LiteralMap extends Transformer<LiteralMapOptions> {
                 !Guard.isIdentifier(decl.id)
               )
                 continue
+              if (decl.init.properties.length === 0) continue
               if (
                 !decl.init.properties.every(
                   (p) =>
