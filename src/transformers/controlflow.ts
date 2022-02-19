@@ -13,18 +13,12 @@ import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
 import * as Guard from '../util/guard'
 import Context from '../context'
-import { immutate } from '../util/helpers'
+import { immutate, filterEmptyStatements } from '../util/helpers'
 
 export interface ControlFlowOptions extends TransformerOptions {}
 export default class ControlFlow extends Transformer<ControlFlowOptions> {
   constructor(options: Partial<ControlFlowOptions>) {
     super('ControlFlow', options)
-  }
-
-  // TODO: global utility method
-  // Copied out of stringdecoder
-  private noEmptyStmt(nodes: Node[]): Node[] {
-    return nodes.filter((i) => i.type !== 'EmptyStatement')
   }
 
   // maybe global util function
@@ -59,7 +53,6 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
   // separate finding literals/functions from each other?
   // current way makes code a bit confusing to follow ^^
   findStorageNode(context: Context) {
-    const { noEmptyStmt } = this
     walk(context.ast, {
       BlockStatement(node) {
         // /shrug
@@ -111,7 +104,7 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
                     })
                   }
                 } else if (Guard.isFunctionExpression(prop.value)) {
-                  let fnb = noEmptyStmt(prop.value.body.body)
+                  let fnb = filterEmptyStatements(prop.value.body.body)
                   if (fnb.length !== 1) continue
                   if (!Guard.isReturnStatement(fnb[0])) continue
                   let imm = immutate(prop.value)

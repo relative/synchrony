@@ -16,7 +16,7 @@ import {
 import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
 import * as Guard from '../util/guard'
-import { immutate } from '../util/helpers'
+import { immutate, filterEmptyStatements } from '../util/helpers'
 
 import Context, {
   DecoderFunction,
@@ -32,11 +32,6 @@ export interface StringDecoderOptions extends TransformerOptions {}
 export default class StringDecoder extends Transformer<StringDecoderOptions> {
   constructor(options: Partial<StringDecoderOptions>) {
     super('StringDecoder', options)
-  }
-
-  // TODO: global utility method
-  private noEmptyStmt(nodes: Node[]): Node[] {
-    return nodes.filter((i) => i.type !== 'EmptyStatement')
   }
 
   private literals_to_arg_array(
@@ -560,10 +555,9 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
   // Scan for function references to the decoder functions and their references
   fnReferenceFinder(context: Context) {
-    const { noEmptyStmt } = this
     walk(context.ast, {
       FunctionDeclaration(node) {
-        let body = noEmptyStmt(node.body.body)
+        let body = filterEmptyStatements(node.body.body)
         if (
           !node.id ||
           body.length !== 1 ||
