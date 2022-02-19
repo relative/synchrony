@@ -14,25 +14,40 @@ const args = process.argv.slice(2)
 const watch = args.length > 0 && args[0].match(/^(?:--watch|-w)$/gi) !== null
 if (watch) process.stdout.write('[watch] ')
 
+function emitTypes() {
+  return new Promise((resolve, reject) => {
+    // shh
+    ;((argv, exit) => {
+      // tsc will exit process on completion with process.exit
+      process.exit = (code) => {
+        process.exit = exit
+        if (typeof code === 'number' && code > 0 /* unclean exit */)
+          return reject(code)
+        resolve()
+      }
+
+      // replace our argv to call the TSC cli from JS
+      process.argv = ['node', 'tsc', '--emitDeclarationOnly', '--declaration']
+      require('typescript/lib/tsc')
+
+      // clean up after ourselves
+      process.argv = argv
+    })(process.argv, process_exit)
+  })
+}
 function noop() {}
 function postBuild() {
   console.log('Copying CLI ===')
   copyFileSync(join(SRC_PATH, 'cli.js'), join(DIST_PATH, 'cli.js'))
 
   console.log('Building type declarations ===')
-  // shh
-  ;((argv, exit) => {
-    // tsc will exit process on completion with process.exit
-    process.exit = noop
-
-    // replace our argv to call the TSC cli from JS
-    process.argv = ['node', 'tsc', '--emitDeclarationOnly', '--declaration']
-    require('typescript/lib/tsc')
-
-    // clean up after ourselves
-    process.argv = argv
-    process.exit = exit
-  })(process.argv, process_exit)
+  emitTypes()
+    .then(() => {
+      console.log('Type declarations built successfully')
+    })
+    .catch((code) => {
+      console.error('tsc exited with code', code)
+    })
 }
 console.log('Building lib ===')
 
