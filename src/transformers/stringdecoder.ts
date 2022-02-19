@@ -519,6 +519,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
   // Scan for variable references to the decoder functions
   varReferenceFinder(context: Context) {
+    let newRefsFound = 0
     walk(context.ast, {
       VariableDeclaration(vd) {
         let rm: string[] = []
@@ -537,6 +538,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
             realIdentifier: valName,
             additionalOffset: 0,
           })
+          newRefsFound++
           if (context.removeGarbage) {
             rm.push(`${decl.start}!${decl.end}`)
           }
@@ -550,11 +552,12 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         }
       },
     })
-    return this
+    return newRefsFound
   }
 
   // Scan for function references to the decoder functions and their references
   fnReferenceFinder(context: Context) {
+    let newRefsFound = 0
     walk(context.ast, {
       FunctionDeclaration(node) {
         let body = filterEmptyStatements(node.body.body)
@@ -646,6 +649,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
           indexArgument: indexArg,
           keyArgument: keyArg,
         })
+        newRefsFound++
         if (context.removeGarbage) {
           ;(node as any).type = 'EmptyStatement'
         }
@@ -663,7 +667,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         )
       },
     })
-    return this
+    return newRefsFound
   }
 
   // Decode everything
@@ -716,17 +720,15 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
   }
 
   public async transform(context: Context) {
-    // TODO: while loop that waits for fnReferenceFinder to return 0 (amount of references found)
-    //       ^ may have to do this for varReferenceFinder too if needed
-    this.stringsFinder(context)
-      .funcFinder(context)
-      .varReferenceFinder(context)
-      .fnReferenceFinder(context)
-      .fnReferenceFinder(context)
-      .fnReferenceFinder(context)
-      .fnReferenceFinder(context)
-      .fnReferenceFinder(context)
-      .shiftFinder(context)
-      .decoder(context)
+    this.stringsFinder(context).funcFinder(context)
+
+    while (this.varReferenceFinder(context) > 0) {
+      context.log('Searching for more variable references')
+    }
+    while (this.fnReferenceFinder(context) > 0) {
+      context.log('Searching for more function references')
+    }
+
+    this.shiftFinder(context).decoder(context)
   }
 }
