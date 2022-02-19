@@ -1,11 +1,6 @@
 import Context from '../context'
 
-export interface TransformerOptions {
-  /**
-   * Whether logging is enabled for this transformer (default = FALSE)
-   */
-  log: boolean
-}
+export interface TransformerOptions {}
 export abstract class Transformer<TOptions extends TransformerOptions> {
   name: string
   options: TOptions
@@ -16,7 +11,7 @@ export abstract class Transformer<TOptions extends TransformerOptions> {
   }
 
   protected buildOptions(options: Partial<TOptions>): TOptions {
-    return { log: true, ...(options as any) }
+    return { ...(options as any) }
   }
   public abstract transform(context: Context): Promise<void>
 }

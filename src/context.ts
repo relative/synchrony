@@ -81,7 +81,6 @@ export default class Context {
   removeGarbage: boolean = true
   transformers: InstanceType<typeof Transformer>[]
 
-  // TODO: fix transformer options
   enableLog: boolean = true
 
   constructor(
