@@ -34,12 +34,10 @@ export default class Simplify extends Transformer<SimplifyOptions> {
           node.argument.value.startsWith('0x') &&
           node.operator === '-'
         ) {
-          return {
+          sp<Literal>(node, {
             type: 'Literal',
             value: unaryExpressionToNumber(node, true),
-            operator: undefined,
-            prefix: undefined,
-          }
+          })
         }
       },
     })
@@ -53,10 +51,10 @@ export default class Simplify extends Transformer<SimplifyOptions> {
           Guard.isLiteralString(node.left) &&
           Guard.isLiteralString(node.right)
         ) {
-          return {
+          sp<Literal>(node, {
             type: 'Literal',
             value: node.left.value + node.right.value,
-          }
+          })
         }
       },
     })
