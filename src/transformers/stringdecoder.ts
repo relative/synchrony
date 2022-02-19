@@ -121,12 +121,12 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
       while (fndDec) {
         fndDec = context.stringDecoderReferences.find(predicate)
         if (fndDec) {
-          context.log(
+          /*context.log(
             'Resolved parent ref id=',
             identifier,
             'found =',
             fndDec.realIdentifier
-          )
+          )*/
           offset += fndDec.additionalOffset
           identifier = fndDec.realIdentifier
         }
