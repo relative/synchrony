@@ -29,16 +29,17 @@
 
 import { base as AcornBaseVisitors } from 'acorn-walk'
 import * as ESTree from 'estree'
-import { NodeType, NodeByType } from './types'
+import { NodeType, NodeByType, Node } from './types'
 
 type WalkerCallback<TState> = (node: ESTree.Node, state: TState) => void
 
-type SimpleWalkerFn<T extends NodeType, TState> = (
+type WalkerFn<T extends NodeType, TState> = (
   node: NodeByType<T>,
-  state: TState | undefined
+  state: TState | Node[],
+  ancestors: Node[]
 ) => ESTree.Node | void
-type SimpleVisitors<TState> = {
-  [type in NodeType]?: SimpleWalkerFn<type, TState>
+type Visitors<TState> = {
+  [type in NodeType]?: WalkerFn<type, TState>
 }
 
 type RecursiveWalkerFn<T extends NodeType, TState> = (
@@ -51,26 +52,24 @@ type RecursiveVisitors<TState> = {
 }
 
 export function walk<TState>(
-  node: ESTree.Node,
-  visitors: SimpleVisitors<TState>,
+  node: Node,
+  visitors: Visitors<TState>,
   base?: RecursiveVisitors<TState>,
   state?: TState,
   _override?: NodeType
-): ESTree.Node {
+): Node {
+  let ancestors: Node[] = []
   const baseVisitors = base || AcornBaseVisitors
   ;(function c(node, st, override) {
     let type: NodeType = override || node.type,
       found = visitors[type]
-
+    let isNew = node !== ancestors[ancestors.length - 1]
+    if (isNew) ancestors.push(node)
     baseVisitors[type]!(node as any, st, c as any) // this isn't undefined?
     if (found) {
       try {
         // new node
-        let retn = found(node as any, st)
-        if (retn)
-          Object.keys(retn).forEach((key) => {
-            ;(node as any)[key] = (retn as any)[key]
-          })
+        found(node as any, st || ancestors, ancestors)
       } catch (err: any) {
         console.error(
           'Caught an error while attempting to run AST visitor!\n\nnode =',
@@ -80,6 +79,7 @@ export function walk<TState>(
         )
       }
     }
+    if (isNew) ancestors.pop()
   })(node, state, _override)
   return node
 }

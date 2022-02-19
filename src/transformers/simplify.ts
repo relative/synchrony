@@ -5,6 +5,7 @@ import {
   sp,
   UnaryExpression,
   NumericUnaryExpression,
+  Node,
 } from '../util/types'
 import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
@@ -14,7 +15,6 @@ import { unaryExpressionToNumber } from '../util/translator'
 import { mathEval } from '../util/math'
 
 import Context from '../context'
-import { Node } from 'estree'
 
 export interface SimplifyOptions extends TransformerOptions {}
 export default class Simplify extends Transformer<SimplifyOptions> {
