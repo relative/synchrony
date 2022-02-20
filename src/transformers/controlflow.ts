@@ -98,7 +98,7 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
                 // remove the ExpressionStatement
                 ;(expr as any).type = 'EmptyStatement'
 
-                console.log(
+                context.log(
                   `${objName}.${ae.left.property.name} = ${ae.right.type}`
                 )
               },
