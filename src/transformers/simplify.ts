@@ -5,6 +5,7 @@ import {
   sp,
   UnaryExpression,
   NumericUnaryExpression,
+  BinaryOperator,
   Node,
 } from '../util/types'
 import { Transformer, TransformerOptions } from './transformer'
@@ -25,8 +26,19 @@ export default class Simplify extends Transformer<SimplifyOptions> {
   // incase other opers like shft/xor are found in code
   private ALLOWED_MATH_OPERS = ['+', '-', '*', '/']
 
-  negativeString(ast: Program) {
-    walk(ast, {
+  private ALLOWED_COMPARISON_OPERS = [
+    '==',
+    '===',
+    '!=',
+    '!==',
+    '>',
+    '<',
+    '<=',
+    '>=',
+  ]
+
+  negativeString(context: Context) {
+    walk(context.ast, {
       UnaryExpression(node) {
         if (
           node.argument.type === 'Literal' &&
@@ -44,12 +56,40 @@ export default class Simplify extends Transformer<SimplifyOptions> {
     return this
   }
 
-  stringConcat(ast: Program) {
-    walk(ast, {
+  // TODO: global method > helpers.ts
+  binEval(
+    lhs: string | number,
+    operator: BinaryOperator,
+    rhs: string | number
+  ): boolean {
+    switch (operator) {
+      case '==':
+        return lhs == rhs
+      case '===':
+        return lhs === rhs
+      case '!=':
+        return lhs != rhs
+      case '!==':
+        return lhs !== rhs
+      case '>':
+        return lhs > rhs
+      case '<':
+        return lhs < rhs
+      case '<=':
+        return lhs <= rhs
+      case '>=':
+        return lhs >= rhs
+    }
+    throw new TypeError(`Operator ${operator} is invalid`)
+  }
+
+  stringConcat(context: Context) {
+    walk(context.ast, {
       BinaryExpression(node) {
         if (
           Guard.isLiteralString(node.left) &&
-          Guard.isLiteralString(node.right)
+          Guard.isLiteralString(node.right) &&
+          node.operator === '+'
         ) {
           sp<Literal>(node, {
             type: 'Literal',
@@ -61,9 +101,10 @@ export default class Simplify extends Transformer<SimplifyOptions> {
     return this
   }
 
-  math(ast: Node) {
+  // This is used in stringdecoder for the push/shift iife
+  math(_node: Node) {
     const { ALLOWED_MATH_OPERS } = this
-    walk(ast, {
+    walk(_node, {
       BinaryExpression(node) {
         // unex & number
         if (!ALLOWED_MATH_OPERS.includes(node.operator)) return
@@ -101,8 +142,8 @@ export default class Simplify extends Transformer<SimplifyOptions> {
   }
 
   // !0/true, !1/false
-  truthyFalsy(ast: Node) {
-    walk(ast, {
+  truthyFalsy(context: Context) {
+    walk(context.ast, {
       UnaryExpression(node) {
         if (node.operator !== '!') return
         if (!Guard.isLiteralNumeric(node.argument)) return
@@ -116,10 +157,38 @@ export default class Simplify extends Transformer<SimplifyOptions> {
     return this
   }
 
-  fixup(ast: Node) {
+  literalComparison(context: Context) {
+    const { ALLOWED_COMPARISON_OPERS, binEval } = this
+    walk(context.ast, {
+      BinaryExpression(node) {
+        if (
+          !Guard.isLiteralNumeric(node.left) &&
+          !Guard.isLiteralString(node.left)
+        )
+          return
+
+        if (
+          !Guard.isLiteralNumeric(node.right) &&
+          !Guard.isLiteralString(node.right)
+        )
+          return
+
+        if (!ALLOWED_COMPARISON_OPERS.includes(node.operator)) return
+
+        let res = binEval(node.left.value, node.operator, node.right.value)
+        sp<Literal>(node, {
+          type: 'Literal',
+          value: res,
+        })
+      },
+    })
+    return this
+  }
+
+  fixup(context: Context) {
     // convert negative numlits to UnaryExpressions
     // negative numlits cause error on codegen
-    walk(ast, {
+    walk(context.ast, {
       Literal(node) {
         if (!Guard.isLiteralNumeric(node)) return
         if (node.value >= 0) return
@@ -135,10 +204,11 @@ export default class Simplify extends Transformer<SimplifyOptions> {
   }
 
   public async transform(context: Context) {
-    this.negativeString(context.ast)
-      .stringConcat(context.ast)
+    this.negativeString(context)
+      .stringConcat(context)
       .math(context.ast)
-      .truthyFalsy(context.ast)
-      .fixup(context.ast)
+      .truthyFalsy(context)
+      .literalComparison(context)
+      .fixup(context)
   }
 }
