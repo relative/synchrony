@@ -8,12 +8,17 @@ import {
   CallExpression,
   FunctionExpression,
   Identifier,
+  ObjectExpression,
 } from '../util/types'
 import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
 import * as Guard from '../util/guard'
 import Context from '../context'
-import { immutate, filterEmptyStatements } from '../util/helpers'
+import {
+  immutate,
+  literalOrIdentifierToString,
+  filterEmptyStatements,
+} from '../util/helpers'
 
 export interface ControlFlowOptions extends TransformerOptions {}
 export default class ControlFlow extends Transformer<ControlFlowOptions> {
@@ -50,6 +55,61 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
     return immRtn as Node
   }
 
+  // fixes empty object inits where there are setters in the same block
+  populateEmptyObjects(context: Context) {
+    walk(context.ast, {
+      BlockStatement(node) {
+        // find empty object decls
+        walk(node, {
+          VariableDeclarator(decl) {
+            if (!Guard.isIdentifier(decl.id)) return
+            if (!decl.init || !Guard.isObjectExpresesion(decl.init)) return
+
+            if (decl.init.properties.length !== 0) return
+
+            const objName = decl.id.name
+
+            // now find the setters
+            walk(node, {
+              ExpressionStatement(expr) {
+                if (!Guard.isAssignmentExpression(expr.expression)) return
+                let ae = expr.expression
+                if (!Guard.isMemberExpression(ae.left)) return
+                if (
+                  !Guard.isIdentifier(ae.left.object) ||
+                  !Guard.isIdentifier(ae.left.property)
+                )
+                  return
+
+                if (ae.left.object.name !== objName) return
+                let prop: Property = {
+                  type: 'Property',
+                  start: 0,
+                  end: 0,
+                  method: false,
+                  shorthand: false,
+                  computed: false,
+                  key: ae.left.property,
+                  value: ae.right,
+                  kind: 'init',
+                }
+                ;(decl.init as ObjectExpression).properties.push(prop)
+
+                // remove the ExpressionStatement
+                ;(expr as any).type = 'EmptyStatement'
+
+                console.log(
+                  `${objName}.${ae.left.property.name} = ${ae.right.type}`
+                )
+              },
+            })
+          },
+        })
+      },
+    })
+    return this
+  }
+
   // separate finding literals/functions from each other?
   // current way makes code a bit confusing to follow ^^
   findStorageNode(context: Context) {
@@ -73,7 +133,8 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
                   (p) =>
                     p.type !== 'SpreadElement' &&
                     ['FunctionExpression', 'Literal'].includes(p.value.type) &&
-                    (p.key.type === 'Literal' || p.key.type === 'Identifier')
+                    (p.key.type === 'Literal' || p.key.type === 'Identifier') &&
+                    literalOrIdentifierToString((p as any).key).length === 5
                 )
               )
                 continue
@@ -136,6 +197,11 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
                 rm.push(`${decl.start}!${decl.end}`)
               }
             }
+
+            // the declaration should probably be removed only after the usages
+            // are replaced, so there is no dep on each key being 5chars
+            // or walk the node for Identifier usages and check parent is not
+            // a CallExpr or MembExpr
             vd.declarations = vd.declarations.filter(
               (d) => !rm.includes(`${d.start}!${d.end}`)
             )
@@ -204,6 +270,8 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
   }
 
   public async transform(context: Context) {
-    this.findStorageNode(context).replacer(context)
+    this.populateEmptyObjects(context)
+      .findStorageNode(context)
+      .replacer(context)
   }
 }

@@ -25,6 +25,7 @@ import {
   CallExpression,
   MemberExpression,
   IfStatement,
+  ObjectExpression,
 } from './types'
 
 type Node = ENode | SNode
@@ -110,4 +111,8 @@ export function isMemberExpression(node: Node): node is MemberExpression {
 
 export function isIfStatement(node: Node): node is IfStatement {
   return node.type === 'IfStatement'
+}
+
+export function isObjectExpresesion(node: Node): node is ObjectExpression {
+  return node.type === 'ObjectExpression'
 }
