@@ -141,6 +141,7 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
                 continue
               context.controlFlowStorageNodes[bid] = {
                 identifier: decl.id.name,
+                aliases: [decl.id.name],
                 functions: [],
                 literals: [],
               }
@@ -217,6 +218,45 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
     return this
   }
 
+  findStorageNodeAliases(context: Context) {
+    walk(context.ast, {
+      BlockStatement(node) {
+        let bid = getBlockId(node)
+
+        if (!context.controlFlowStorageNodes[bid]) return
+        if (node.body.length === 0) return
+        const cfsn = context.controlFlowStorageNodes[bid]
+
+        walk(node, {
+          VariableDeclaration(vd) {
+            let rm: string[] = []
+            for (const decl of vd.declarations) {
+              if (
+                !decl.init ||
+                !Guard.isIdentifier(decl.id) ||
+                !Guard.isIdentifier(decl.init)
+              )
+                continue
+              if (cfsn.aliases.includes(decl.init.name)) {
+                cfsn.aliases.push(decl.id.name)
+                rm.push(`${decl.start}!${decl.end}`)
+              }
+            }
+
+            vd.declarations = vd.declarations.filter(
+              (d) => !rm.includes(`${d.start}!${d.end}`)
+            )
+            if (vd.declarations.length === 0) {
+              // this node wont generate if it has no declarations left
+              ;(vd as any).type = 'EmptyStatement'
+            }
+          },
+        })
+      },
+    })
+    return this
+  }
+
   replacer(context: Context) {
     const { translateCallExp } = this
     walk(context.ast, {
@@ -229,7 +269,7 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
           MemberExpression(mx) {
             if (!Guard.isIdentifier(mx.object)) return
             if (!Guard.isIdentifier(mx.property)) return
-            if (mx.object.name !== cfsn.identifier) return
+            if (!cfsn.aliases.includes(mx.object.name)) return
 
             // typeguards still dont work inside arrow funcs(((((
             let ident = mx.property.name,
@@ -250,7 +290,7 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
             if (!Guard.isMemberExpression(cx.callee)) return
             if (!Guard.isIdentifier(cx.callee.object)) return
             if (!Guard.isIdentifier(cx.callee.property)) return
-            if (cx.callee.object.name !== cfsn.identifier) return
+            if (!cfsn.aliases.includes(cx.callee.object.name)) return
 
             let ident = cx.callee.property.name,
               i = -1
@@ -377,6 +417,7 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
   public async transform(context: Context) {
     this.populateEmptyObjects(context)
       .findStorageNode(context)
+      .findStorageNodeAliases(context)
       .replacer(context)
       .deflatten(context)
   }

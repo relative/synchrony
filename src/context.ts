@@ -62,6 +62,7 @@ interface ControlFlowLiteral {
 }
 interface ControlFlowStorage {
   identifier: string
+  aliases: string[]
   functions: ControlFlowFunction[]
   literals: ControlFlowLiteral[]
 }
