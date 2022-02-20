@@ -9,6 +9,7 @@ import {
   FunctionExpression,
   Identifier,
   ObjectExpression,
+  Statement,
 } from '../util/types'
 import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
@@ -269,9 +270,114 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
     return this
   }
 
+  deflatten(context: Context) {
+    walk(context.ast, {
+      WhileStatement(node, _, ancestors) {
+        if (!Guard.isLiteralBoolean(node.test) || node.test.value !== true)
+          return
+        if (
+          !Guard.isBlockStatement(node.body) ||
+          node.body.body.length === 0 ||
+          !Guard.isSwitchStatement(node.body.body[0])
+        )
+          return
+
+        const parent = ancestors[ancestors.length - 2]
+        if (!Guard.isBlockStatement(parent)) return
+
+        const switchStmt = node.body.body[0]
+
+        if (!Guard.isMemberExpression(switchStmt.discriminant)) return
+        if (
+          !Guard.isIdentifier(switchStmt.discriminant.object) ||
+          !Guard.isUpdateExpression(switchStmt.discriminant.property) ||
+          switchStmt.discriminant.property.operator !== '++' ||
+          switchStmt.discriminant.property.prefix !== false || // prefix ++s change "return" of updexp
+          !Guard.isIdentifier(switchStmt.discriminant.property.argument)
+        )
+          return
+
+        let shuffleId = switchStmt.discriminant.object.name,
+          indexId = switchStmt.discriminant.property.argument.name
+        let shuffleArr: string[] = [],
+          startIdx = -1
+
+        walk(parent, {
+          VariableDeclaration(vd) {
+            let rm: string[] = []
+            for (const decl of vd.declarations) {
+              if (!Guard.isIdentifier(decl.id)) continue
+              if (!decl.init) continue
+              if (decl.id.name === shuffleId) {
+                if (!Guard.isCallExpression(decl.init)) continue
+                if (!Guard.isMemberExpression(decl.init.callee)) continue
+                if (!Guard.isLiteralString(decl.init.callee.object)) continue
+                if (
+                  !Guard.isIdentifier(decl.init.callee.property) ||
+                  decl.init.callee.property.name !== 'split'
+                )
+                  continue
+                if (!Guard.isLiteralString(decl.init.arguments[0])) continue
+                // 'nXnXnXnXn'.split(X)
+                let shfStr = decl.init.callee.object.value,
+                  sep = decl.init.arguments[0].value
+                shuffleArr = shfStr.split(sep)
+                rm.push(`${decl.start}!${decl.end}`)
+              } else if (decl.id.name === indexId) {
+                if (!Guard.isLiteralNumeric(decl.init)) continue
+                startIdx = decl.init.value
+                rm.push(`${decl.start}!${decl.end}`)
+              } else {
+                continue
+              }
+            }
+
+            vd.declarations = vd.declarations.filter(
+              (d) => !rm.includes(`${d.start}!${d.end}`)
+            )
+            // check decl length maybe
+            // another transformer already removes the VD if no declarations
+          },
+        })
+
+        // didnt locate arr or index
+        if (shuffleArr.length === 0 || startIdx === -1) return
+
+        let nodes: Statement[][] = []
+
+        for (let i = startIdx; i < shuffleArr.length; i++) {
+          let caseNum = shuffleArr[i]
+          let caze = switchStmt.cases.find(
+            (c) => c.test && Guard.isLiteral(c.test) && c.test.value === caseNum
+          )
+          if (!caze) return // should restore the variables above before returning
+          nodes.push(
+            caze.consequent.filter((i) => i.type !== 'ContinueStatement')
+          )
+        }
+
+        let ourIdx = parent.body.findIndex(
+          (e) =>
+            e.type === node.type && e.start === node.start && e.end === node.end
+        )
+        parent.body.splice(ourIdx, 1, ...nodes.flat())
+
+        context.log(
+          'Found flattened control flow arr =',
+          shuffleArr,
+          'idx =',
+          startIdx
+        )
+      },
+    })
+
+    return this
+  }
+
   public async transform(context: Context) {
     this.populateEmptyObjects(context)
       .findStorageNode(context)
       .replacer(context)
+      .deflatten(context)
   }
 }
