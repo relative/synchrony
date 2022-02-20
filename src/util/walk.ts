@@ -37,7 +37,7 @@ type WalkerFn<T extends NodeType, TState> = (
   node: NodeByType<T>,
   state: TState | Node[],
   ancestors: Node[]
-) => ESTree.Node | void
+) => any
 type Visitors<TState> = {
   [type in NodeType]?: WalkerFn<type, TState>
 }

@@ -142,16 +142,36 @@ export default class Simplify extends Transformer<SimplifyOptions> {
   }
 
   // !0/true, !1/false
+  // ![]/false
   truthyFalsy(context: Context) {
     walk(context.ast, {
       UnaryExpression(node) {
         if (node.operator !== '!') return
-        if (!Guard.isLiteralNumeric(node.argument)) return
-        if (![0, 1].includes(node.argument.value)) return
+        if (!Guard.isArrayExpression(node.argument)) return
+        if (node.argument.elements.length !== 0) return
+
         sp<Literal>(node, {
           type: 'Literal',
-          value: !node.argument.value,
+          value: false,
         })
+      },
+    })
+
+    walk(context.ast, {
+      UnaryExpression(node) {
+        if (node.operator !== '!') return
+        if (Guard.isLiteralBoolean(node.argument)) {
+          return sp<Literal>(node, {
+            type: 'Literal',
+            value: !node.argument.value,
+          })
+        } else if (Guard.isLiteralNumeric(node.argument)) {
+          if (![0, 1].includes(node.argument.value)) return
+          sp<Literal>(node, {
+            type: 'Literal',
+            value: !node.argument.value,
+          })
+        }
       },
     })
     return this

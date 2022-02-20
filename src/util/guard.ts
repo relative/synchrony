@@ -26,6 +26,8 @@ import {
   MemberExpression,
   IfStatement,
   ObjectExpression,
+  SwitchStatement,
+  UpdateExpression,
 } from './types'
 
 type Node = ENode | SNode
@@ -93,12 +95,20 @@ export function isFunctionExpression(node: Node): node is FunctionExpression {
   return node.type === 'FunctionExpression'
 }
 
+export function isUpdateExpression(node: Node): node is UpdateExpression {
+  return node.type === 'UpdateExpression'
+}
+
 export function isCallExpression(node: Node): node is CallExpression {
   return node.type === 'CallExpression'
 }
 
 export function isBlockStatement(node: Node): node is BlockStatement {
   return node.type === 'BlockStatement'
+}
+
+export function isSwitchStatement(node: Node): node is SwitchStatement {
+  return node.type === 'SwitchStatement'
 }
 
 export function isBinaryExpression(node: Node): node is BinaryExpression {
