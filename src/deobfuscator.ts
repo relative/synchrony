@@ -107,9 +107,13 @@ export class Deobfuscator {
         semi: false,
         singleQuote: true,
 
-        parser(text, _opts) {
+        parser: 'babel',
+        // TODO: replace when https://github.com/prettier/prettier/issues/10244
+        //       is fixed
+        //       prettier does not support ChainExpressions emitted by acorn
+        /*parser(text, _opts) {
           return acorn.parse(text, acornOptions)
-        },
+        },*/
       })
     } catch (err) {
       // I don't think we should log here, but throwing the error is not very
