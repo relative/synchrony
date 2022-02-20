@@ -12,6 +12,7 @@ import LiteralMap from './transformers/literalmap'
 import MemberExpressionCleaner from './transformers/memberexpressioncleaner'
 import Simplify from './transformers/simplify'
 import StringDecoder from './transformers/stringdecoder'
+import DeadCode from './transformers/deadcode'
 
 export enum DecoderFunctionType {
   SIMPLE,
@@ -122,6 +123,9 @@ export default class Context {
           break
         case 'stringdecoder':
           transformers.push(new StringDecoder(opt))
+          break
+        case 'deadcode':
+          transformers.push(new DeadCode(opt))
           break
         default:
           throw new TypeError(

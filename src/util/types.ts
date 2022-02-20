@@ -148,6 +148,7 @@ export type PropertyLiteral = Property & {
 
 export type StringLiteral = Literal & { value: string }
 export type NumericLiteral = Literal & { value: number }
+export type BooleanLiteral = Literal & { value: boolean }
 export type NumericUnaryExpression = UnaryExpression & {
   argument: NumericLiteral
 }

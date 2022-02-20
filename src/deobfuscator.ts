@@ -75,8 +75,10 @@ export class Deobfuscator {
       ['ControlFlow', {}],
       ['ControlFlow', {}],
       ['Desequence', {}],
-
       ['MemberExpressionCleaner', {}],
+
+      ['Simplify', {}],
+      ['DeadCode', {}],
     ])
 
     for (const t of context.transformers) {

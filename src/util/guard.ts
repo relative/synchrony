@@ -3,6 +3,7 @@ import {
   Expression,
   Node as SNode,
   Literal,
+  BooleanLiteral,
   NumericLiteral,
   StringLiteral,
   UnaryExpression,
@@ -43,6 +44,10 @@ export function isLiteralNumeric(node: Node): node is NumericLiteral {
   return isLiteral(node) && typeof node.value === 'number'
 }
 
+export function isLiteralBoolean(node: Node): node is BooleanLiteral {
+  return isLiteral(node) && typeof node.value === 'boolean'
+}
+
 export function isUnaryExpression(node: Node): node is UnaryExpression {
   return node.type === 'UnaryExpression'
 }
@@ -53,9 +58,7 @@ export function isUnaryExpressionNumeric(
   return isUnaryExpression(node) && isLiteralNumeric(node.argument)
 }
 
-export function isExpressionStatement(
-  node: Statement
-): node is ExpressionStatement {
+export function isExpressionStatement(node: Node): node is ExpressionStatement {
   return node.type === 'ExpressionStatement'
 }
 
@@ -73,9 +76,7 @@ export function isReturnStatement(node: Node): node is ReturnStatement {
   return node.type === 'ReturnStatement'
 }
 
-export function isVariableDeclaration(
-  node: Statement
-): node is VariableDeclaration {
+export function isVariableDeclaration(node: Node): node is VariableDeclaration {
   return node.type === 'VariableDeclaration'
 }
 
@@ -95,7 +96,7 @@ export function isCallExpression(node: Node): node is CallExpression {
   return node.type === 'CallExpression'
 }
 
-export function isBlockStatement(node: Statement): node is BlockStatement {
+export function isBlockStatement(node: Node): node is BlockStatement {
   return node.type === 'BlockStatement'
 }
 
