@@ -28,6 +28,8 @@ import {
   ObjectExpression,
   SwitchStatement,
   UpdateExpression,
+  ArrowFunctionExpression,
+  FunctionDeclaration,
 } from './types'
 
 type Node = ENode | SNode
@@ -79,6 +81,10 @@ export function isReturnStatement(node: Node): node is ReturnStatement {
   return node.type === 'ReturnStatement'
 }
 
+export function isFunctionDeclaration(node: Node): node is FunctionDeclaration {
+  return node.type === 'FunctionDeclaration'
+}
+
 export function isVariableDeclaration(node: Node): node is VariableDeclaration {
   return node.type === 'VariableDeclaration'
 }
@@ -93,6 +99,12 @@ export function isIdentifier(node: Node): node is Identifier {
 
 export function isFunctionExpression(node: Node): node is FunctionExpression {
   return node.type === 'FunctionExpression'
+}
+
+export function isArrowFunctionExpression(
+  node: Node
+): node is ArrowFunctionExpression {
+  return node.type === 'ArrowFunctionExpression'
 }
 
 export function isUpdateExpression(node: Node): node is UpdateExpression {
