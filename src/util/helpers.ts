@@ -15,3 +15,27 @@ export function literalOrIdentifierToString(node: Node): string {
 export function filterEmptyStatements(nodes: Node[]): Node[] {
   return nodes.filter((i) => i.type !== 'EmptyStatement')
 }
+
+type CommentType = 'Line' | 'Block'
+function createCommentNode(type: CommentType, value: string) {
+  return {
+    type,
+    value,
+  }
+}
+export function addLeadingCommentToNode(
+  node: Node,
+  type: CommentType,
+  value: string
+) {
+  node.leadingComments = node.leadingComments || []
+  node.leadingComments.push(createCommentNode(type, value))
+}
+export function addTrailingCommentToNode(
+  node: Node,
+  type: CommentType,
+  value: string
+) {
+  node.trailingComments = node.trailingComments || []
+  node.trailingComments.push(createCommentNode(type, value))
+}
