@@ -79,6 +79,8 @@ export class Deobfuscator {
 
       ['Simplify', {}],
       ['DeadCode', {}],
+
+      ['Rename', {}],
     ])
 
     for (const t of context.transformers) {
@@ -101,7 +103,9 @@ export class Deobfuscator {
     // perform transforms
     ast = await this.deobfuscateNode(ast, options)
 
-    source = escodegen.generate(ast)
+    source = escodegen.generate(ast, {
+      comment: true,
+    })
     try {
       source = prettier.format(source, {
         semi: false,

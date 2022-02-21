@@ -13,6 +13,8 @@ import MemberExpressionCleaner from './transformers/memberexpressioncleaner'
 import Simplify from './transformers/simplify'
 import StringDecoder from './transformers/stringdecoder'
 import DeadCode from './transformers/deadcode'
+import Rename from './transformers/rename'
+import { ScopeManager } from './scope'
 
 export enum DecoderFunctionType {
   SIMPLE,
@@ -85,6 +87,8 @@ export default class Context {
 
   enableLog: boolean = true
 
+  scopes: ScopeManager
+
   constructor(
     ast: Program,
     transformers: [string, Partial<TransformerOptions>][],
@@ -94,6 +98,8 @@ export default class Context {
     this.transformers = this.buildTransformerList(transformers)
 
     this.source = source
+
+    this.scopes = new ScopeManager(this)
   }
 
   public log(message?: any, ...optionalParams: any[]) {
@@ -127,6 +133,9 @@ export default class Context {
           break
         case 'deadcode':
           transformers.push(new DeadCode(opt))
+          break
+        case 'rename':
+          transformers.push(new Rename(opt))
           break
         default:
           throw new TypeError(
