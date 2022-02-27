@@ -7,6 +7,8 @@ import {
   ExpressionStatement,
   ReturnStatement,
   CallExpression,
+  FunctionExpression,
+  AssignmentExpression,
   StringLiteral,
   Identifier,
   Statement,
@@ -255,21 +257,49 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         const block = node.body
         const fnId = node.id.name
 
-        if (block.body.length !== 2) return
+        if (block.body.length > 3 && block.body.length < 2) return
+
+        // stringArray declaration
         if (!Guard.isVariableDeclaration(block.body[0])) return
         let retn = block.body[block.body.length - 1]
+        if (!Guard.isReturnStatement(retn) || !retn.argument) return
+
+        let fn: FunctionExpression,
+          ae: AssignmentExpression | undefined = undefined
+
+        if (retn.argument.type === 'SequenceExpression') {
+          if (
+            !Guard.isReturnStatement(retn) ||
+            retn.argument?.type !== 'SequenceExpression' ||
+            retn.argument.expressions.length !== 2 ||
+            !Guard.isAssignmentExpression(retn.argument.expressions[0]) ||
+            !Guard.isCallExpression(retn.argument.expressions[1])
+            // check callexp callee and args?
+          )
+            return
+          ae = retn.argument.expressions[0]
+        } else if (retn.argument.type === 'CallExpression') {
+          if (
+            !Guard.isIdentifier(retn.argument.callee) ||
+            retn.argument.callee.name !== fnId ||
+            !Guard.isExpressionStatement(block.body[1]) ||
+            !Guard.isAssignmentExpression(block.body[1].expression)
+          )
+            return
+
+          ae = block.body[1].expression
+        }
+
+        if (!ae) return
+
         if (
-          !Guard.isReturnStatement(retn) ||
-          retn.argument?.type !== 'SequenceExpression' ||
-          retn.argument.expressions.length !== 2 ||
-          retn.argument.expressions[0].type !== 'AssignmentExpression' ||
-          retn.argument.expressions[0].left.type !== 'Identifier' ||
-          retn.argument.expressions[0].left.name !== fnId ||
-          retn.argument.expressions[0].right.type !== 'FunctionExpression' ||
-          retn.argument.expressions[1].type !== 'CallExpression'
-          // check callexp callee and args?
+          !Guard.isIdentifier(ae.left) ||
+          ae.left.name !== fnId ||
+          !Guard.isFunctionExpression(ae.right)
         )
           return
+        fn = ae.right
+
         if (
           block.body[0].declarations[0].init?.type !== 'CallExpression' ||
           block.body[0].declarations[0].init.callee.type !== 'Identifier' ||
@@ -277,8 +307,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
             context.stringArrayIdentifier
         )
           return
-        const fn = retn.argument.expressions[0].right,
-          fnParams = (fn.params as Identifier[]).map((id) => id.name)
+
         const body = fn.body.body as Statement[]
         let calcOffset = 0
         if (
@@ -332,7 +361,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
               }
             } else if (
               Guard.isBlockStatement(body[2].consequent) &&
-              body[2].consequent.body.length > 3 &&
+              body[2].consequent.body.length >= 3 &&
               // b64
               Guard.isVariableDeclaration(body[2].consequent.body[0]) &&
               Guard.isFunctionExpression(
