@@ -1,6 +1,6 @@
 {
   "name": "deobfuscator",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "description": "multipurpose javascript transformer",
   "main": "dist/index.js",
   "bin": {
