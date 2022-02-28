@@ -557,10 +557,14 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
             continue
           let refName = decl.id.name,
             valName = decl.init.name
-          let foundDecoder = context.stringDecoders.find(
-            (d) => d.identifier === valName
-          )
-          if (!foundDecoder) continue
+          let foundDecoder: DecoderFunction | DecoderReference | undefined =
+            context.stringDecoders.find((d) => d.identifier === valName)
+          if (!foundDecoder) {
+            foundDecoder = context.stringDecoderReferences.find(
+              (d) => d.identifier === valName
+            )
+            if (!foundDecoder) continue
+          }
           context.log('Found variable reference', refName, valName)
           context.stringDecoderReferences.push({
             identifier: refName,
