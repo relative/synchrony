@@ -11,25 +11,32 @@ export default class Desequence extends Transformer<DesqeuenceOptions> {
   }
 
   desequence(ast: Program) {
+    function visitor(node: BlockStatement | Program) {
+      // find expstmt > seqexp in node.body
+
+      for (let stmt of node.body) {
+        if (
+          Guard.isExpressionStatement(stmt) &&
+          Guard.isSequenceExpression(stmt.expression)
+        ) {
+          let i = node.body.findIndex(
+            (s) => s.start === stmt.start && s.end === stmt.end
+          )
+          let expr = stmt.expression.expressions.map((exp) => ({
+            type: 'ExpressionStatement',
+            expression: exp,
+          }))
+          ;(node.body[i] as any) = expr
+        }
+      }
+      sp<Program>(node, { body: node.body.flat() })
+    }
     walk(ast, {
       BlockStatement(node) {
-        // find expstmt > seqexp in node.body
-        for (let stmt of node.body) {
-          if (
-            Guard.isExpressionStatement(stmt) &&
-            Guard.isSequenceExpression(stmt.expression)
-          ) {
-            let i = node.body.findIndex(
-              (s) => s.start === stmt.start && s.end === stmt.end
-            )
-            let expr = stmt.expression.expressions.map((exp) => ({
-              type: 'ExpressionStatement',
-              expression: exp,
-            }))
-            ;(node.body[i] as any) = expr
-          }
-        }
-        sp<BlockStatement>(node, { body: node.body.flat() })
+        visitor(node)
+      },
+      Program(node) {
+        visitor(node)
       },
     })
     return this
