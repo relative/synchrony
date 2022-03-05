@@ -69,13 +69,17 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
             if (decl.init.properties.length !== 0) return
 
             const objName = decl.id.name
-
             // now find the setters
+
+            // TODO: this will break if the value is set with a value set
+            // after the Object is defined
             walk(node, {
               ExpressionStatement(expr) {
                 if (!Guard.isAssignmentExpression(expr.expression)) return
                 let ae = expr.expression
+
                 if (!Guard.isMemberExpression(ae.left)) return
+
                 if (
                   !Guard.isIdentifier(ae.left.object) ||
                   !Guard.isIdentifier(ae.left.property)
@@ -83,6 +87,7 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
                   return
 
                 if (ae.left.object.name !== objName) return
+
                 let prop: Property = {
                   type: 'Property',
                   start: 0,
@@ -114,6 +119,7 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
   // separate finding literals/functions from each other?
   // current way makes code a bit confusing to follow ^^
   findStorageNode(context: Context) {
+    const { findStorageNodeAliases } = this
     walk(context.ast, {
       BlockStatement(node) {
         // /shrug
@@ -211,6 +217,8 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
               // this node wont generate if it has no declarations left
               ;(vd as any).type = 'EmptyStatement'
             }
+
+            findStorageNodeAliases(context, node).replacer(context, node)
           },
         })
       },
@@ -218,8 +226,8 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
     return this
   }
 
-  findStorageNodeAliases(context: Context) {
-    walk(context.ast, {
+  findStorageNodeAliases = (context: Context, ast: Node) => {
+    walk(ast, {
       BlockStatement(node) {
         let bid = getBlockId(node)
 
@@ -257,9 +265,9 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
     return this
   }
 
-  replacer(context: Context) {
+  replacer = (context: Context, ast: Node) => {
     const { translateCallExp } = this
-    walk(context.ast, {
+    walk(ast, {
       BlockStatement(node) {
         const bid = getBlockId(node)
         if (!context.controlFlowStorageNodes[bid]) return
@@ -417,8 +425,6 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
   public async transform(context: Context) {
     this.populateEmptyObjects(context)
       .findStorageNode(context)
-      .findStorageNodeAliases(context)
-      .replacer(context)
       .deflatten(context)
   }
 }

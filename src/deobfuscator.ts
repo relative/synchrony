@@ -1,9 +1,11 @@
 import escodegen from 'escodegen'
 import * as acorn from 'acorn' // no, it cannot be a default import
 import { Transformer } from './transformers/transformer'
-import { Program } from './util/types'
+import { Node, Program, sp } from './util/types'
 import Context from './context'
 import prettier from 'prettier'
+import { walk } from './util/walk'
+
 const FILE_REGEX = /(?<!\.d)\.[mc]?[jt]s$/i // cjs, mjs, js, ts, but no .d.ts
 
 // TODO: remove this when https://github.com/acornjs/acorn/commit/a4a5510 lands
@@ -35,6 +37,14 @@ export interface DeobfuscateOptions {
   ecmaVersion: ecmaVersion
 
   /**
+   * Replace ChainExpressions with babel-compatible Optional{X}Expessions
+   * for work with Prettier
+   * https://github.com/prettier/prettier/pull/12172
+   * (default = true)
+   */
+  transformChainExpressions: boolean
+
+  /**
    * Custom transformers to use
    */
   customTransformers: typeof Transformer[]
@@ -43,6 +53,7 @@ export interface DeobfuscateOptions {
 export class Deobfuscator {
   public defaultOptions: DeobfuscateOptions = {
     ecmaVersion: 'latest',
+    transformChainExpressions: true,
     customTransformers: [],
   }
 
@@ -69,10 +80,7 @@ export class Deobfuscator {
       ['Simplify', {}],
       ['MemberExpressionCleaner', {}],
 
-      ['ControlFlow', {}],
-      ['ControlFlow', {}],
-      ['ControlFlow', {}],
-      ['ControlFlow', {}],
+      ['Desequence', {}],
       ['ControlFlow', {}],
       ['Desequence', {}],
       ['MemberExpressionCleaner', {}],
@@ -107,17 +115,35 @@ export class Deobfuscator {
         semi: false,
         singleQuote: true,
 
-        parser: 'babel',
-        // TODO: replace when https://github.com/prettier/prettier/issues/10244
-        //       is fixed
-        //       prettier does not support ChainExpressions emitted by acorn
-        /*parser(text, _opts) {
-          return acorn.parse(text, acornOptions)
-        },*/
+        // https://github.com/prettier/prettier/pull/12172
+        parser(text, _opts) {
+          let ast = acorn.parse(text, acornOptions)
+          if (options.transformChainExpressions) {
+            walk(ast as Node, {
+              ChainExpression(cx) {
+                if (cx.expression.type === 'CallExpression') {
+                  sp<any>(cx, {
+                    ...cx.expression,
+                    type: 'OptionalCallExpression',
+                    expression: undefined,
+                  })
+                } else if (cx.expression.type === 'MemberExpression') {
+                  sp<any>(cx, {
+                    ...cx.expression,
+                    type: 'OptionalMemberExpression',
+                    expression: undefined,
+                  })
+                }
+              },
+            })
+          }
+          return ast
+        },
       })
     } catch (err) {
       // I don't think we should log here, but throwing the error is not very
       // important since it is non fatal
+      console.log(err)
     }
 
     return source
