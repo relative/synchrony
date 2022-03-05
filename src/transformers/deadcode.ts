@@ -82,9 +82,48 @@ export default class DeadCode extends Transformer<DeadCodeOptions> {
     return this
   }
 
+  // remove if(false), while(false)
+  removeDead(context: Context) {
+    walk(context.ast, {
+      IfStatement(node, _, ancestors) {
+        const parent = ancestors[ancestors.length - 2]
+        if (!Guard.isBlockStatement(parent)) return
+        if (
+          !Guard.isLiteralBoolean(node.test) ||
+          node.test.value ||
+          node.alternate
+        )
+          return
+
+        // dead
+
+        let ourIdx = parent.body.findIndex(
+          (e) =>
+            e.type === node.type && e.start === node.start && e.end === node.end
+        )
+        parent.body.splice(ourIdx, 1)
+      },
+    })
+    walk(context.ast, {
+      WhileStatement(node, _, ancestors) {
+        const parent = ancestors[ancestors.length - 2]
+        if (!Guard.isBlockStatement(parent)) return
+        if (!Guard.isLiteralBoolean(node.test) || node.test.value) return
+
+        let ourIdx = parent.body.findIndex(
+          (e) =>
+            e.type === node.type && e.start === node.start && e.end === node.end
+        )
+        parent.body.splice(ourIdx, 1)
+      },
+    })
+    return this
+  }
+
   public async transform(context: Context) {
     this.flipIfStatements(context)
       .removeDeadAlternates(context)
       .fixIfStatements(context)
+      .removeDead(context)
   }
 }
