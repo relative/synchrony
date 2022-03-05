@@ -1,13 +1,12 @@
 import {
-  Program,
   NumericLiteral,
   Literal,
   sp,
-  UnaryExpression,
   NumericUnaryExpression,
   BinaryOperator,
   Node,
   Identifier,
+  BlockStatement,
 } from '../util/types'
 import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
@@ -17,6 +16,7 @@ import { unaryExpressionToNumber } from '../util/translator'
 import { mathEval } from '../util/math'
 
 import Context from '../context'
+import { immutate } from '../util/helpers'
 
 export interface SimplifyOptions extends TransformerOptions {}
 export default class Simplify extends Transformer<SimplifyOptions> {
@@ -206,6 +206,40 @@ export default class Simplify extends Transformer<SimplifyOptions> {
     return this
   }
 
+  singleToBlock(context: Context) {
+    walk(context.ast, {
+      ForStatement(node) {
+        if (Guard.isBlockStatement(node.body)) return
+        sp<BlockStatement>(node.body, {
+          type: 'BlockStatement',
+          body: [immutate(node.body)],
+        })
+      },
+      WhileStatement(node) {
+        if (Guard.isBlockStatement(node.body)) return
+        sp<BlockStatement>(node.body, {
+          type: 'BlockStatement',
+          body: [immutate(node.body)],
+        })
+      },
+      IfStatement(node) {
+        if (!Guard.isBlockStatement(node.consequent)) {
+          sp<BlockStatement>(node.consequent, {
+            type: 'BlockStatement',
+            body: [immutate(node.consequent)],
+          })
+        }
+        if (node.alternate && !Guard.isBlockStatement(node.alternate)) {
+          sp<BlockStatement>(node.alternate, {
+            type: 'BlockStatement',
+            body: [immutate(node.alternate)],
+          })
+        }
+      },
+    })
+    return this
+  }
+
   conditionalExpression(context: Context) {
     walk(context.ast, {
       ConditionalExpression(node, _, ancestors) {
@@ -255,6 +289,7 @@ export default class Simplify extends Transformer<SimplifyOptions> {
       .truthyFalsy(context)
       .literalComparison(context)
       .conditionalExpression(context)
+      .singleToBlock(context)
       .fixup(context)
   }
 }
