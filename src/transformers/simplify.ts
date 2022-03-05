@@ -7,6 +7,7 @@ import {
   NumericUnaryExpression,
   BinaryOperator,
   Node,
+  Identifier,
 } from '../util/types'
 import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
@@ -205,6 +206,30 @@ export default class Simplify extends Transformer<SimplifyOptions> {
     return this
   }
 
+  conditionalExpression(context: Context) {
+    walk(context.ast, {
+      ConditionalExpression(node, _, ancestors) {
+        if (!Guard.isLiteralBoolean(node.test)) return
+        if (!node.test.value) {
+          node.test.value = true
+          let consequent = node.consequent
+          node.consequent = node.alternate
+          node.alternate = consequent
+        }
+
+        // node.test.value is true now
+        // alternate will be invalid branch
+        sp<Identifier>(node.alternate, {
+          type: 'Identifier',
+          name: 'undefined',
+        })
+
+        sp<Node>(node, node.consequent)
+      },
+    })
+    return this
+  }
+
   fixup(context: Context) {
     // convert negative numlits to UnaryExpressions
     // negative numlits cause error on codegen
@@ -229,6 +254,7 @@ export default class Simplify extends Transformer<SimplifyOptions> {
       .math(context.ast)
       .truthyFalsy(context)
       .literalComparison(context)
+      .conditionalExpression(context)
       .fixup(context)
   }
 }
