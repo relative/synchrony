@@ -383,8 +383,9 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
             vd.declarations = vd.declarations.filter(
               (d) => !rm.includes(`${d.start}!${d.end}`)
             )
-            // check decl length maybe
-            // another transformer already removes the VD if no declarations
+            if (vd.declarations.length === 0) {
+              ;(vd as any).type = 'EmptyStatement'
+            }
           },
         })
 
