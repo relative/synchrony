@@ -198,6 +198,37 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
   // Find the string array automatically
   // !! Must match to hardcoded function schema !!
   stringsFinder(context: Context) {
+    if (context.stringArray.length > 0) return this
+    if (context.stringArray.length === 0 && context.stringArrayIdentifier) {
+      // look for array
+      walk(context.ast, {
+        VariableDeclaration(node, _, ancestors) {
+          let rm: string[] = []
+          for (const vd of node.declarations) {
+            if (!Guard.isIdentifier(vd.id)) continue
+            if (!vd.init || !Guard.isArrayExpression(vd.init)) continue
+            if (vd.id.name !== context.stringArrayIdentifier) continue
+
+            if (!vd.init.elements.every((e) => Guard.isLiteralString(e as any)))
+              continue
+            context.stringArray = (vd.init.elements as StringLiteral[]).map(
+              (e) => e.value
+            )
+            context.log(
+              'Found string array at',
+              vd.id.name,
+              '#',
+              context.stringArray.length
+            )
+            rm.push(`${vd.start}!${vd.end}`)
+          }
+
+          node.declarations = node.declarations.filter(
+            (d) => !rm.includes(`${d.start}!${d.end}`)
+          )
+        },
+      })
+    }
     walk(context.ast, {
       FunctionDeclaration(node) {
         const block = node.body
@@ -257,13 +288,16 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         const block = node.body
         const fnId = node.id.name
 
-        if (block.body.length > 3 && block.body.length < 2) return
+        if (block.body.length > 3 && block.body.length < 1) return
 
         // stringArray declaration
-        if (!Guard.isVariableDeclaration(block.body[0])) return
+        if (
+          !Guard.isVariableDeclaration(block.body[0]) &&
+          block.body.length !== 1
+        )
+          return
         let retn = block.body[block.body.length - 1]
         if (!Guard.isReturnStatement(retn) || !retn.argument) return
-
         let fn: FunctionExpression,
           ae: AssignmentExpression | undefined = undefined
 
@@ -301,14 +335,29 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         fn = ae.right
 
         if (
-          block.body[0].declarations[0].init?.type !== 'CallExpression' ||
-          block.body[0].declarations[0].init.callee.type !== 'Identifier' ||
-          block.body[0].declarations[0].init.callee.name !==
-            context.stringArrayIdentifier
+          block.body.length !== 1 &&
+          Guard.isVariableDeclaration(block.body[0]) &&
+          (block.body[0].declarations[0].init?.type !== 'CallExpression' ||
+            block.body[0].declarations[0].init.callee.type !== 'Identifier' ||
+            block.body[0].declarations[0].init.callee.name !==
+              context.stringArrayIdentifier)
         )
           return
-
         const body = fn.body.body as Statement[]
+        if (block.body.length === 1) {
+          if (
+            !Guard.isVariableDeclaration(body[1]) ||
+            body[1].declarations[0].init?.type !== 'MemberExpression' ||
+            !Guard.isIdentifier(body[1].declarations[0].init.object) ||
+            !Guard.isIdentifier(body[1].declarations[0].init.property)
+          )
+            return
+          // array reference, not function
+          // locate the stringArray after funcFinder is ran
+          context.stringArrayIdentifier =
+            body[1].declarations[0].init.object.name
+        }
+
         let calcOffset = 0
         if (
           !Guard.isExpressionStatement(body[0]) ||
@@ -753,7 +802,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
   }
 
   public async transform(context: Context) {
-    this.stringsFinder(context).funcFinder(context)
+    this.stringsFinder(context).funcFinder(context).stringsFinder(context)
 
     while (this.varReferenceFinder(context) > 0) {
       context.log('Searching for more variable references')
