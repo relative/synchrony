@@ -6,6 +6,9 @@ import {
   Program,
 } from './util/types'
 import { Transformer, TransformerOptions } from './transformers/transformer'
+
+import * as eslintScope from 'eslint-scope'
+
 import ControlFlow from './transformers/controlflow'
 import Desequence from './transformers/desequence'
 import LiteralMap from './transformers/literalmap'
@@ -85,6 +88,8 @@ export default class Context {
 
   enableLog: boolean = true
 
+  scopeManager: eslintScope.ScopeManager
+
   constructor(
     ast: Program,
     transformers: [string, Partial<TransformerOptions>][],
@@ -94,6 +99,8 @@ export default class Context {
     this.transformers = this.buildTransformerList(transformers)
 
     this.source = source
+
+    this.scopeManager = eslintScope.analyze(this.ast, {})
   }
 
   public log(message?: any, ...optionalParams: any[]) {
