@@ -1,5 +1,5 @@
 import { Transformer, TransformerOptions } from './transformer'
-import { walk } from '../util/walk'
+import { walk, findNodeAt } from '../util/walk'
 import {
   Function,
   IfStatement,
@@ -141,12 +141,16 @@ export default class DeadCode extends Transformer<DeadCodeOptions> {
         if (v.references.length === 0) {
           let def = v.defs[0]
           let node = def.node as VariableDeclarator
-          let p = def.parent as VariableDeclaration
-          if (p.type === 'VariableDeclaration') {
-            p.declarations = p.declarations.filter(
-              (decl) => decl.start !== node.start && decl.end !== node.end
-            )
-          }
+          let p = findNodeAt<VariableDeclaration>(
+            func,
+            def.parent.range!,
+            'VariableDeclaration'
+          )
+          if (!p) continue // ?
+          p.declarations = p.declarations.filter(
+            (decl) => decl.start !== node.start && decl.end !== node.end
+          )
+          //if (v.name === 'oneTap') debugger
           context.log('Removed dead variable', v.name)
         }
       }
