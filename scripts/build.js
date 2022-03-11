@@ -10,9 +10,15 @@ const ROOT_PATH = join(__dirname, '..'),
 
 const args = process.argv.slice(2)
 
+// should be 'production' | 'development'
+const env = process.env.NODE_ENV ? process.env.NODE_ENV.trim() : 'development'
+
 // --watch or -w
 const watch = args.length > 0 && args[0].match(/^(?:--watch|-w)$/gi) !== null
 if (watch) process.stdout.write('[watch] ')
+
+// production enables certain things that make debugging harder
+const production = env === 'production' || !watch
 
 function emitTypes() {
   return new Promise((resolve, reject) => {
@@ -69,8 +75,8 @@ esbuild
 
     bundle: true,
     outdir: DIST_PATH,
-    sourcemap: false,
-    minify: true,
+    sourcemap: !production,
+    minify: production,
 
     platform: 'node',
     format: 'cjs',
