@@ -16,6 +16,8 @@ import MemberExpressionCleaner from './transformers/memberexpressioncleaner'
 import Simplify from './transformers/simplify'
 import StringDecoder from './transformers/stringdecoder'
 import DeadCode from './transformers/deadcode'
+import Demangle from './transformers/demangle'
+import ArrayMap from './transformers/arraymap'
 
 export enum DecoderFunctionType {
   SIMPLE,
@@ -134,6 +136,12 @@ export default class Context {
           break
         case 'deadcode':
           transformers.push(new DeadCode(opt))
+          break
+        case 'demangle':
+          transformers.push(new Demangle(opt))
+          break
+        case 'arraymap':
+          transformers.push(new ArrayMap(opt))
           break
         default:
           throw new TypeError(

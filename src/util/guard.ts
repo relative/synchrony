@@ -30,6 +30,7 @@ import {
   UpdateExpression,
   FunctionDeclaration,
   ArrowFunctionExpression,
+  ForStatement,
 } from './types'
 
 type Node = ENode | SNode
@@ -133,6 +134,10 @@ export function isMemberExpression(node: Node): node is MemberExpression {
 
 export function isIfStatement(node: Node): node is IfStatement {
   return node.type === 'IfStatement'
+}
+
+export function isForStatement(node: Node): node is ForStatement {
+  return node.type === 'ForStatement'
 }
 
 export function isObjectExpresesion(node: Node): node is ObjectExpression {

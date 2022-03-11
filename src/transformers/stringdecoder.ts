@@ -14,6 +14,7 @@ import {
   Statement,
   Literal,
   UnaryExpression,
+  Expression,
 } from '../util/types'
 import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
@@ -469,7 +470,26 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
       const body = node.callee.body.body,
         bRev = [...body].reverse()
+
+      if (body.length < 2) return
+      let loopBody: Statement[]
+      if (bRev[0].type === 'ForStatement') {
+        if (!Guard.isBlockStatement(bRev[0].body)) return
+        loopBody = filterEmptyStatements(bRev[0].body.body) as Statement[]
+      } else if (bRev[0].type === 'WhileStatement') {
+        if (!Guard.isBlockStatement(bRev[0].body)) return
+        loopBody = filterEmptyStatements(bRev[0].body.body) as Statement[]
+      } else {
+        return
+      }
       if (
+        loopBody.length !== 1 ||
+        loopBody[0].type !== 'TryStatement' ||
+        filterEmptyStatements(loopBody[0].block.body).length !== 2
+      )
+        return
+      let blockBody = filterEmptyStatements(loopBody[0].block.body)
+      /*if (
         body.length < 2 ||
         //bRev[1].type !== 'VariableDeclaration' || // multiple wrappers break this check
         bRev[0].type !== 'WhileStatement' ||
@@ -479,12 +499,32 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         bRev[0].body.body[0].block.body.length !== 2 ||
         bRev[0].body.body[0].block.body[0].type !== 'VariableDeclaration'
       )
-        return
+        return*/
       if (node.arguments[1].type !== 'Literal') return
       const breakCond = node.arguments[1].value
+      let pic: Expression
 
-      const pic = bRev[0].body.body[0].block.body[0].declarations[0].init
-      if (pic?.type !== 'BinaryExpression') return
+      if (blockBody[0].type === 'VariableDeclaration') {
+        if (!blockBody[0].declarations[0].init) return
+        pic = blockBody[0].declarations[0].init as Expression
+      } else if (blockBody[0].type === 'IfStatement') {
+        if (
+          !Guard.isBinaryExpression(blockBody[0].test) ||
+          blockBody[0].test.operator !== '==='
+        )
+          return
+        if (
+          !Guard.isLiteralNumeric(blockBody[0].test.left) ||
+          blockBody[0].test.left.value !== breakCond
+        )
+          return
+        pic = blockBody[0].test.right
+      } else {
+        return
+      }
+
+      //pic = loopBody[0].block.body[0].declarations[0].init
+      if (pic.type !== 'BinaryExpression') return
 
       let st = new Simplify({})
 

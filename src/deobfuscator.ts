@@ -74,6 +74,7 @@ export class Deobfuscator {
       ['MemberExpressionCleaner', {}],
       ['LiteralMap', {}],
       ['DeadCode', {}],
+      ['Demangle', {}],
 
       ['StringDecoder', {}],
 
@@ -85,6 +86,9 @@ export class Deobfuscator {
       ['Desequence', {}],
       ['MemberExpressionCleaner', {}],
 
+      ['ArrayMap', {}],
+      ['Simplify', {}],
+      ['DeadCode', {}],
       ['Simplify', {}],
       ['DeadCode', {}],
     ])

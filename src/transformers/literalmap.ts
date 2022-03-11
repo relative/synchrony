@@ -111,6 +111,8 @@ export default class LiteralMap extends Transformer<LiteralMapOptions> {
         const vd = v.defs[0].node as VariableDeclarator
 
         if (vd.init?.type !== 'Literal') continue
+        if (typeof vd.init.value === 'string' && vd.init.value.length === 65)
+          continue
         // prevents us from replacing overwrote variables
         if (!v.references.every((ref) => ref.init || ref.isReadOnly())) continue
 
