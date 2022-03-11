@@ -1,6 +1,12 @@
 import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
-import { IfStatement, sp } from '../util/types'
+import {
+  Function,
+  IfStatement,
+  sp,
+  VariableDeclaration,
+  VariableDeclarator,
+} from '../util/types'
 import * as Guard from '../util/guard'
 import Context from '../context'
 
@@ -120,10 +126,45 @@ export default class DeadCode extends Transformer<DeadCodeOptions> {
     return this
   }
 
+  // remove dead variables (not assigned)
+  removeDeadVariables(context: Context) {
+    function visitor(func: Function) {
+      const scope = context.scopeManager.acquire(func)
+      if (!scope) return
+
+      for (const v of scope.variables) {
+        if (v.name === 'arguments') continue
+        if (v.identifiers.length !== 1) continue // ?
+        if (v.defs.length !== 1) continue // ?
+        if (v.defs[0].type !== 'Variable') continue
+
+        if (v.references.length === 0) {
+          let def = v.defs[0]
+          let node = def.node as VariableDeclarator
+          let p = def.parent as VariableDeclaration
+          if (p.type === 'VariableDeclaration') {
+            p.declarations = p.declarations.filter(
+              (decl) => decl.start !== node.start && decl.end !== node.end
+            )
+          }
+          context.log('Removed dead variable', v.name)
+        }
+      }
+    }
+
+    walk(context.ast, {
+      FunctionDeclaration: visitor,
+      FunctionExpression: visitor,
+      ArrowFunctionExpression: visitor,
+    })
+    return this
+  }
+
   public async transform(context: Context) {
     this.flipIfStatements(context)
       .removeDeadAlternates(context)
       .fixIfStatements(context)
       .removeDead(context)
+      .removeDeadVariables(context)
   }
 }
