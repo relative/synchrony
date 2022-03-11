@@ -2,6 +2,7 @@ lockfileVersion: 5.3
 
 specifiers:
   '@types/escodegen': 0.0.7
+  '@types/eslint-scope': 3.7.3
   '@types/estree': 0.0.51
   '@types/node': 17.0.17
   '@types/prettier': 2.4.4
@@ -10,6 +11,7 @@ specifiers:
   acorn-walk: 8.2.0
   esbuild: 0.14.21
   escodegen: 2.0.0
+  eslint-scope: 7.1.1
   javascript-obfuscator: 4.0.0
   prettier: 2.5.1
   rimraf: 3.0.2
@@ -21,11 +23,13 @@ dependencies:
   acorn: 8.7.0
   acorn-walk: 8.2.0
   escodegen: 2.0.0
+  eslint-scope: 7.1.1
   prettier: 2.5.1
   yargs: 17.3.1
 
 devDependencies:
   '@types/escodegen': 0.0.7
+  '@types/eslint-scope': 3.7.3
   '@types/estree': 0.0.51
   '@types/node': 17.0.17
   '@types/prettier': 2.4.4
@@ -59,8 +63,26 @@ packages:
     resolution: {integrity: sha512-46oENdSRNEJXCNrPJoC3vRolZJpfeEm7yvATkd2bCncKFG0PUEyfBCaoacfpcXH4Y5RRuqdVj3J7TI+wwn2SbQ==}
     dev: true
 
+  /@types/eslint-scope/3.7.3:
+    resolution: {integrity: sha512-PB3ldyrcnAicT35TWPs5IcwKD8S333HMaa2VVv4+wdvebJkjWuW/xESoB8IwRcog8HYVYamb1g/R31Qv5Bx03g==}
+    dependencies:
+      '@types/eslint': 8.4.1
+      '@types/estree': 0.0.51
+    dev: true
+
+  /@types/eslint/8.4.1:
+    resolution: {integrity: sha512-GE44+DNEyxxh2Kc6ro/VkIj+9ma0pO0bwv9+uHSyBrikYOHr8zYcdPvnBOp1aw8s+CjRvuSx7CyWqRrNFQ59mA==}
+    dependencies:
+      '@types/estree': 0.0.51
+      '@types/json-schema': 7.0.9
+    dev: true
+
   /@types/estree/0.0.51:
     resolution: {integrity: sha512-CuPgU6f3eT/XgKKPqKd/gLZV1Xmvf1a2R5POBOGQa6uv82xpls89HU5zKeVoyR8XzHd1RGNOlQlvUe3CFkjWNQ==}
+    dev: true
+
+  /@types/json-schema/7.0.9:
+    resolution: {integrity: sha512-qcUXuemtEu+E5wZSJHNxUXeCZhAfXKQ41D+duX+VYPde7xyEVZci+/oXKJL13tnRs9lR2pr4fod59GT6/X1/yQ==}
     dev: true
 
   /@types/minimatch/3.0.5:
@@ -492,6 +514,14 @@ packages:
       estraverse: 5.3.0
     dev: true
 
+  /eslint-scope/7.1.1:
+    resolution: {integrity: sha512-QKQM/UXpIiHcLqJ5AOyIW7XZmzjkzQXYE54n1++wb0u9V/abW3l9uQnxX8Z5Xd18xyKIMTUAyQ0k1e8pz6LUrw==}
+    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+    dependencies:
+      esrecurse: 4.3.0
+      estraverse: 5.3.0
+    dev: false
+
   /eslint-visitor-keys/3.2.0:
     resolution: {integrity: sha512-IOzT0X126zn7ALX0dwFiUQEdsfzrm4+ISsQS8nukaJXwEyYKRSnEIIDULYg1mCtGp7UUXgfGl7BIolXREQK+XQ==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
@@ -507,7 +537,6 @@ packages:
     engines: {node: '>=4.0'}
     dependencies:
       estraverse: 5.3.0
-    dev: true
 
   /estraverse/5.3.0:
     resolution: {integrity: sha512-MMdARuVEQziNTeJD8DgMqmhwR11BRQ/cBP+pLtYdSTnf3MIO8fFeiINEbX36ZdNlfU/7A9f3gUw49B3oQsvwBA==}
