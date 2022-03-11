@@ -1,6 +1,17 @@
-import { sp, Property, Literal } from '../util/types'
+import {
+  sp,
+  Property,
+  Literal,
+  Function,
+  ArrowFunctionExpression,
+  FunctionExpression,
+  FunctionDeclaration,
+  Identifier,
+  VariableDeclarator,
+  VariableDeclaration,
+} from '../util/types'
 import { Transformer, TransformerOptions } from './transformer'
-import { walk } from '../util/walk'
+import { walk, findNodeAt } from '../util/walk'
 import * as Guard from '../util/guard'
 import Context from '../context'
 
@@ -86,7 +97,55 @@ export default class LiteralMap extends Transformer<LiteralMapOptions> {
     return this
   }
 
+  // replace read-only variables in functions
+  literals(context: Context) {
+    function visitor(func: Function) {
+      const scope = context.scopeManager.acquire(func)
+      if (!scope) return
+
+      for (const v of scope.variables) {
+        if (v.name === 'arguments') continue
+        if (v.identifiers.length !== 1) continue // ?
+        if (v.defs.length !== 1) continue // ?
+        if (v.defs[0].type !== 'Variable') continue // ?
+        const vd = v.defs[0].node as VariableDeclarator
+
+        if (vd.init?.type !== 'Literal') continue
+        // prevents us from replacing overwrote variables
+        if (!v.references.every((ref) => ref.init || ref.isReadOnly())) continue
+
+        for (const ref of v.references) {
+          // Dont replace our init reference lol
+          if (ref.init) {
+            let def = v.defs[0]
+            let node = def.node as VariableDeclarator
+            let p = def.parent as VariableDeclaration
+            if (p.type === 'VariableDeclaration') {
+              p.declarations = p.declarations.filter(
+                (decl) => decl.start !== node.start && decl.end !== node.end
+              )
+            }
+            continue
+          }
+          const refid = findNodeAt<Identifier>(
+            func,
+            ref.identifier.range!,
+            'Identifier'
+          )
+          if (!refid) continue // hm
+          sp<Literal>(refid, vd.init)
+        }
+      }
+    }
+    walk(context.ast, {
+      FunctionDeclaration: visitor,
+      FunctionExpression: visitor,
+      ArrowFunctionExpression: visitor,
+    })
+    return this
+  }
+
   public async transform(context: Context) {
-    this.demap(context)
+    this.demap(context).literals(context)
   }
 }
