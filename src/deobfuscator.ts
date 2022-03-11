@@ -69,7 +69,6 @@ export class Deobfuscator {
   ): Promise<Program> {
     const options = this.buildOptions(_options)
 
-    // TODO: fix control flow so its not duplicated 30 times
     const context = new Context(node, [
       ['Simplify', {}],
       ['MemberExpressionCleaner', {}],
