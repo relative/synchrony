@@ -73,6 +73,7 @@ export class Deobfuscator {
       ['Simplify', {}],
       ['MemberExpressionCleaner', {}],
       ['LiteralMap', {}],
+      ['DeadCode', {}],
 
       ['StringDecoder', {}],
 
@@ -102,6 +103,8 @@ export class Deobfuscator {
     const options = this.buildOptions(_options)
     let acornOptions: acorn.Options = {
       ecmaVersion: options.ecmaVersion,
+      // this is important for eslint-scope !!!!!!
+      ranges: true,
     }
     let ast = acorn.parse(source, acornOptions) as Program
 
