@@ -83,3 +83,42 @@ export function walk<TState>(
   })(node, state, _override)
   return node
 }
+
+class Found<TNode extends Node> {
+  node: TNode
+  constructor(node: TNode) {
+    this.node = node
+  }
+}
+
+// For scope
+export function findNodeAt<TNode extends Node>(
+  node: Node,
+  range: [number, number],
+  test: TNode['type'],
+  base?: RecursiveVisitors<{}>
+): TNode | undefined {
+  const baseVisitors = base || AcornBaseVisitors
+  const start = range[0],
+    end = range[1]
+  try {
+    ;(function c(node, _st, override) {
+      let type: NodeType = override || node.type
+      if (
+        (start == null || node.start <= start) &&
+        (end == null || node.end >= end)
+      )
+        baseVisitors[type]!(node as any, {}, c as any)
+      if (
+        (start == null || node.start === start) &&
+        (end == null || node.end === end) &&
+        node.type === test
+      ) {
+        throw new Found<TNode>(node as TNode)
+      }
+    })(node)
+  } catch (ex) {
+    if (ex instanceof Found) return ex.node as TNode
+    throw ex
+  }
+}
