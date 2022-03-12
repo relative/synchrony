@@ -18,6 +18,7 @@ import StringDecoder from './transformers/stringdecoder'
 import DeadCode from './transformers/deadcode'
 import Demangle from './transformers/demangle'
 import ArrayMap from './transformers/arraymap'
+import Rename from './transformers/rename'
 
 export enum DecoderFunctionType {
   SIMPLE,
@@ -91,6 +92,7 @@ export default class Context {
   enableLog: boolean = true
 
   scopeManager: eslintScope.ScopeManager
+  hash: number = 0
 
   constructor(
     ast: Program,
@@ -142,6 +144,9 @@ export default class Context {
           break
         case 'arraymap':
           transformers.push(new ArrayMap(opt))
+          break
+        case 'rename':
+          transformers.push(new Rename(opt))
           break
         default:
           throw new TypeError(

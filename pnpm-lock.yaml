@@ -4,6 +4,7 @@ specifiers:
   '@types/escodegen': 0.0.7
   '@types/eslint-scope': 3.7.3
   '@types/estree': 0.0.51
+  '@types/mersenne-twister': 1.1.2
   '@types/node': 17.0.17
   '@types/prettier': 2.4.4
   '@types/yargs': 17.0.8
@@ -13,6 +14,7 @@ specifiers:
   escodegen: 2.0.0
   eslint-scope: 7.1.1
   javascript-obfuscator: 4.0.0
+  mersenne-twister: 1.1.0
   prettier: 2.5.1
   rimraf: 3.0.2
   typedoc: 0.22.11
@@ -24,6 +26,7 @@ dependencies:
   acorn-walk: 8.2.0
   escodegen: 2.0.0
   eslint-scope: 7.1.1
+  mersenne-twister: 1.1.0
   prettier: 2.5.1
   yargs: 17.3.1
 
@@ -31,6 +34,7 @@ devDependencies:
   '@types/escodegen': 0.0.7
   '@types/eslint-scope': 3.7.3
   '@types/estree': 0.0.51
+  '@types/mersenne-twister': 1.1.2
   '@types/node': 17.0.17
   '@types/prettier': 2.4.4
   '@types/yargs': 17.0.8
@@ -83,6 +87,10 @@ packages:
 
   /@types/json-schema/7.0.9:
     resolution: {integrity: sha512-qcUXuemtEu+E5wZSJHNxUXeCZhAfXKQ41D+duX+VYPde7xyEVZci+/oXKJL13tnRs9lR2pr4fod59GT6/X1/yQ==}
+    dev: true
+
+  /@types/mersenne-twister/1.1.2:
+    resolution: {integrity: sha512-7KMIfSkMpaVExbzJRLUXHMO4hkFWbbspHPREk8I6pBxiNN+3+l6eAEClMCIPIo2KjCkR0rjYfXppr6+wKdTwpA==}
     dev: true
 
   /@types/minimatch/3.0.5:
@@ -830,6 +838,10 @@ packages:
       crypt: 0.0.2
       is-buffer: 1.1.6
     dev: true
+
+  /mersenne-twister/1.1.0:
+    resolution: {integrity: sha1-+RZhjuQ9cXnvz2Qb7EUx65Zwl4o=}
+    dev: false
 
   /minimatch/3.1.1:
     resolution: {integrity: sha512-reLxBcKUPNBnc/sVtAbxgRVFSegoGeLaSjmphNhcwcolhYLRgtJscn5mRl6YRZNQv40Y7P6JM2YhSIsbL9OB5A==}

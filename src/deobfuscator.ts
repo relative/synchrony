@@ -1,6 +1,6 @@
 import escodegen from 'escodegen'
 import * as acorn from 'acorn' // no, it cannot be a default import
-import { Transformer } from './transformers/transformer'
+import { Transformer, TransformerOptions } from './transformers/transformer'
 import { Node, Program, sp } from './util/types'
 import Context from './context'
 import prettier from 'prettier'
@@ -48,6 +48,18 @@ export interface DeobfuscateOptions {
    * Custom transformers to use
    */
   customTransformers: typeof Transformer[]
+
+  /**
+   * Rename identifiers (default = false)
+   */
+  rename: boolean
+}
+
+function sourceHash(str: string) {
+  let key = 0x94a3fa21
+  let length = str.length
+  while (length) key = (key * 33) ^ str.charCodeAt(--length)
+  return key >>> 0
 }
 
 export class Deobfuscator {
@@ -55,6 +67,7 @@ export class Deobfuscator {
     ecmaVersion: 'latest',
     transformChainExpressions: true,
     customTransformers: [],
+    rename: false,
   }
 
   private buildOptions(
@@ -63,13 +76,21 @@ export class Deobfuscator {
     return { ...this.defaultOptions, ...options }
   }
 
+  private buildAcornOptions(options: DeobfuscateOptions): acorn.Options {
+    return {
+      ecmaVersion: options.ecmaVersion,
+      // this is important for eslint-scope !!!!!!
+      ranges: true,
+    }
+  }
+
   public async deobfuscateNode(
     node: Program,
     _options?: Partial<DeobfuscateOptions>
   ): Promise<Program> {
     const options = this.buildOptions(_options)
 
-    const context = new Context(node, [
+    let context = new Context(node, [
       ['Simplify', {}],
       ['MemberExpressionCleaner', {}],
       ['LiteralMap', {}],
@@ -86,7 +107,7 @@ export class Deobfuscator {
       ['Desequence', {}],
       ['MemberExpressionCleaner', {}],
 
-      ['ArrayMap', {}],
+      //['ArrayMap', {}],
       ['Simplify', {}],
       ['DeadCode', {}],
       ['Simplify', {}],
@@ -97,6 +118,18 @@ export class Deobfuscator {
       console.log('Running', t.name, 'transformer')
       await t.transform(context)
     }
+
+    if (options.rename) {
+      let source = escodegen.generate(context.ast),
+        parsed = acorn.parse(source, this.buildAcornOptions(options)) as Program
+      context = new Context(parsed, [['Rename', {}]])
+      context.hash = sourceHash(source)
+      for (const t of context.transformers) {
+        console.log('(rename) Running', t.name, 'transformer')
+        await t.transform(context)
+      }
+    }
+
     return context.ast
   }
 
@@ -105,11 +138,7 @@ export class Deobfuscator {
     _options?: Partial<DeobfuscateOptions>
   ): Promise<string> {
     const options = this.buildOptions(_options)
-    let acornOptions: acorn.Options = {
-      ecmaVersion: options.ecmaVersion,
-      // this is important for eslint-scope !!!!!!
-      ranges: true,
-    }
+    const acornOptions = this.buildAcornOptions(options)
     let ast = acorn.parse(source, acornOptions) as Program
 
     // perform transforms
