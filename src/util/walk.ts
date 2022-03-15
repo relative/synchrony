@@ -71,6 +71,7 @@ export function walk<TState>(
         // new node
         found(node as any, st || ancestors, ancestors)
       } catch (err: any) {
+        //throw err
         console.error(
           'Caught an error while attempting to run AST visitor!\n\nnode =',
           node,

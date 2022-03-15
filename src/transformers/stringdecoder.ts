@@ -561,6 +561,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
       let blockBody = filterEmptyStatements(loopBody[0].block.body)
 
       // string array id
+      if (node.arguments.length !== 2) return
       if (node.arguments[0].type !== 'Identifier') return
       if (node.arguments[1].type !== 'Literal') return
       const breakCond = node.arguments[1].value
