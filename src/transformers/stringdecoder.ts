@@ -27,6 +27,7 @@ import Context, {
   DecoderFunctionRC4,
   DecoderFunctionType,
   DecoderReference,
+  StringArrayType,
 } from '../context'
 import { literalOrUnaryExpressionToNumber } from '../util/translator'
 import Simplify from './simplify'
@@ -150,7 +151,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
     switch (decoder.type) {
       case DecoderFunctionType.SIMPLE:
-        return this.decodeSimple(context, index, offset)
+        return this.decodeSimple(context, identifier, index, offset)
       case DecoderFunctionType.BASE64:
         return this.decodeBase64(context, identifier, index, offset)
       case DecoderFunctionType.RC4:
@@ -161,8 +162,38 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
     }
   }
 
-  decodeSimple(context: Context, index: number, offset: number) {
-    return context.stringArray[index + offset]
+  getString = (
+    context: Context,
+    decoderIdentifier: string,
+    index: number,
+    offset: number
+  ): string => {
+    const stringDecoder = context.stringDecoders.find(
+      (i) => i.identifier === decoderIdentifier
+    )
+    if (!stringDecoder)
+      throw new Error(
+        `Failed to find string decoder with identifier "${decoderIdentifier}"`
+      )
+
+    const strArray = context.stringArrays.find(
+      (i) => i.identifier === stringDecoder.stringArrayIdentifier
+    )
+    if (!strArray)
+      throw new Error(
+        `Failed to find string array with identifier "${stringDecoder.stringArrayIdentifier}"`
+      )
+
+    return strArray.strings[index + offset]
+  }
+
+  decodeSimple(
+    context: Context,
+    identifier: string,
+    index: number,
+    offset: number
+  ) {
+    return this.getString(context, identifier, index, offset)
   }
   decodeBase64(
     context: Context,
@@ -170,7 +201,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
     index: number,
     offset: number
   ) {
-    let str = context.stringArray[index + offset],
+    let str = this.getString(context, identifier, index, offset),
       charset = (
         context.stringDecoders.find(
           (d) =>
@@ -186,7 +217,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
     key: string,
     offset: number
   ) {
-    let str = context.stringArray[index + offset],
+    let str = this.getString(context, identifier, index, offset),
       charset = (
         context.stringDecoders.find(
           (d) =>
@@ -199,27 +230,38 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
   // Find the string array automatically
   // !! Must match to hardcoded function schema !!
   stringsFinder(context: Context) {
-    if (context.stringArray.length > 0) return this
-    if (context.stringArray.length === 0 && context.stringArrayIdentifier) {
-      // look for array
+    // look for array
+    if (context.stringArrays.some((i) => i.type === StringArrayType.ARRAY)) {
       walk(context.ast, {
         VariableDeclaration(node, _, ancestors) {
           let rm: string[] = []
           for (const vd of node.declarations) {
             if (!Guard.isIdentifier(vd.id)) continue
             if (!vd.init || !Guard.isArrayExpression(vd.init)) continue
-            if (vd.id.name !== context.stringArrayIdentifier) continue
+            const identifier = vd.id.name
+            if (
+              !context.stringArrays.find(
+                (i) =>
+                  i.type === StringArrayType.ARRAY &&
+                  i.identifier === identifier
+              )
+            )
+              continue
 
             if (!vd.init.elements.every((e) => Guard.isLiteralString(e as any)))
               continue
-            context.stringArray = (vd.init.elements as StringLiteral[]).map(
+            const strArray = context.stringArrays.find(
+              (i) => i.identifier === identifier
+            )!
+            strArray.strings = (vd.init.elements as StringLiteral[]).map(
               (e) => e.value
-            )
+            ) as string[]
+
             context.log(
               'Found string array at',
-              vd.id.name,
+              strArray.identifier,
               '#',
-              context.stringArray.length
+              strArray.strings.length
             )
             rm.push(`${vd.start}!${vd.end}`)
           }
@@ -230,6 +272,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         },
       })
     }
+
     walk(context.ast, {
       FunctionDeclaration(node) {
         const block = node.body
@@ -264,18 +307,21 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
           return
         if (!strArray.elements.every((e) => Guard.isLiteralString(e as any)))
           return
-        context.stringArray = (strArray.elements as StringLiteral[]).map(
-          (e) => e.value
-        )
-        context.stringArrayIdentifier = fnId
+
+        const strArrayObj = {
+          identifier: fnId,
+          type: StringArrayType.FUNCTION,
+          strings: (strArray.elements as StringLiteral[]).map((e) => e.value),
+        }
         if (context.removeGarbage) {
           ;(node as any).type = 'EmptyStatement'
         }
+        context.stringArrays.push(strArrayObj)
         context.log(
           'Found string array at',
-          fnId,
+          strArrayObj.identifier,
           '#',
-          context.stringArray.length
+          strArrayObj.strings.length
         )
       },
     })
@@ -290,7 +336,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         const fnId = node.id.name
 
         if (block.body.length > 3 && block.body.length < 1) return
-
+        if (!block.body[0]) return
         // stringArray declaration
         if (
           !Guard.isVariableDeclaration(block.body[0]) &&
@@ -335,18 +381,28 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
           return
         fn = ae.right
 
+        const stringArrayNames = context.stringArrays.map((i) => i.identifier)
+        let ourStringArray = ''
+
         if (
           block.body.length !== 1 &&
-          Guard.isVariableDeclaration(block.body[0]) &&
-          (block.body[0].declarations[0].init?.type !== 'CallExpression' ||
+          Guard.isVariableDeclaration(block.body[0])
+        ) {
+          if (
+            block.body[0].declarations[0].init?.type !== 'CallExpression' ||
             block.body[0].declarations[0].init.callee.type !== 'Identifier' ||
-            block.body[0].declarations[0].init.callee.name !==
-              context.stringArrayIdentifier)
-        )
-          return
+            !stringArrayNames.includes(
+              block.body[0].declarations[0].init.callee.name
+            )
+          )
+            return
+
+          ourStringArray = block.body[0].declarations[0].init.callee.name
+        }
         const body = fn.body.body as Statement[]
         if (block.body.length === 1) {
           if (
+            !body[1] ||
             !Guard.isVariableDeclaration(body[1]) ||
             body[1].declarations[0].init?.type !== 'MemberExpression' ||
             !Guard.isIdentifier(body[1].declarations[0].init.object) ||
@@ -355,8 +411,19 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
             return
           // array reference, not function
           // locate the stringArray after funcFinder is ran
-          context.stringArrayIdentifier =
-            body[1].declarations[0].init.object.name
+
+          ourStringArray = body[1].declarations[0].init.object.name
+          let strArrayObj = {
+            identifier: ourStringArray,
+            type: StringArrayType.ARRAY,
+            strings: [],
+          }
+          context.stringArrays.push(strArrayObj)
+          context.log(
+            'Added',
+            strArrayObj.identifier,
+            'as a string array to be found'
+          )
         }
 
         let calcOffset = 0
@@ -379,6 +446,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
         let decFn = {
           identifier: node.id.name,
+          stringArrayIdentifier: ourStringArray,
           offset: calcOffset,
           type: DecoderFunctionType.SIMPLE,
           indexArgument: 0,
@@ -447,6 +515,8 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         context.log(
           'Found decoder function',
           node.id?.name,
+          'arrayId =',
+          decFn.stringArrayIdentifier,
           'offset =',
           calcOffset,
           'type =',
@@ -489,17 +559,9 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
       )
         return
       let blockBody = filterEmptyStatements(loopBody[0].block.body)
-      /*if (
-        body.length < 2 ||
-        //bRev[1].type !== 'VariableDeclaration' || // multiple wrappers break this check
-        bRev[0].type !== 'WhileStatement' ||
-        !Guard.isBlockStatement(bRev[0].body) ||
-        bRev[0].body.body.length !== 1 ||
-        bRev[0].body.body[0].type !== 'TryStatement' ||
-        bRev[0].body.body[0].block.body.length !== 2 ||
-        bRev[0].body.body[0].block.body[0].type !== 'VariableDeclaration'
-      )
-        return*/
+
+      // string array id
+      if (node.arguments[0].type !== 'Identifier') return
       if (node.arguments[1].type !== 'Literal') return
       const breakCond = node.arguments[1].value
       let pic: Expression
@@ -528,9 +590,19 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
 
       let st = new Simplify({})
 
+      const stringArrayIdent = node.arguments[0].name
+
+      const stringArray = context.stringArrays.find(
+        (i) => i.identifier === stringArrayIdent
+      )
+      if (!stringArray)
+        throw new Error(
+          `Failed to find string array with identifier "${stringArrayIdent}" for push/shift calc`
+        )
+
       // String eval loop
       // push/shift should only have #size unique combinations I think
-      let maxLoops = context.stringArray.length * 2,
+      let maxLoops = stringArray.strings.length * 2,
         iteration = 0
       while (true) {
         iteration++
@@ -543,7 +615,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         const bpic = immutate(pic)
         let hasNaN = false
 
-        context.stringArray.push(context.stringArray.shift() as string)
+        stringArray.strings.push(stringArray.strings.shift() as string)
 
         // convert -?parseInt(strdec(idx)) / n [+*] $0 chain
         walk(bpic, {

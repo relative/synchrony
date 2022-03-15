@@ -28,6 +28,7 @@ export enum DecoderFunctionType {
 
 export interface DecoderFunction {
   identifier: string
+  stringArrayIdentifier: string
   type: DecoderFunctionType
   offset: number
   indexArgument: number
@@ -73,12 +74,22 @@ interface ControlFlowStorage {
   literals: ControlFlowLiteral[]
 }
 
+export enum StringArrayType {
+  FUNCTION,
+  ARRAY,
+}
+
+interface StringArray {
+  identifier: string
+  type: StringArrayType
+  strings: string[]
+}
+
 export default class Context {
   ast: Program
   source?: string
 
-  stringArray: string[] = []
-  stringArrayIdentifier?: string
+  stringArrays: StringArray[] = []
   stringDecoders: DecoderFunction[] = []
   stringDecoderReferences: DecoderReference[] = []
 

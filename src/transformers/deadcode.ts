@@ -150,7 +150,6 @@ export default class DeadCode extends Transformer<DeadCodeOptions> {
           p.declarations = p.declarations.filter(
             (decl) => decl.start !== node.start && decl.end !== node.end
           )
-          //if (v.name === 'oneTap') debugger
           context.log('Removed dead variable', v.name)
         }
       }
@@ -169,6 +168,6 @@ export default class DeadCode extends Transformer<DeadCodeOptions> {
       .removeDeadAlternates(context)
       .fixIfStatements(context)
       .removeDead(context)
-      .removeDeadVariables(context)
+    //.removeDeadVariables(context)
   }
 }
