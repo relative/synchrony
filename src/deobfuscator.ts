@@ -30,6 +30,8 @@ type ecmaVersion =
   | 2022
   | 'latest'
 
+type TransformerArray = [string, Partial<TransformerOptions>][]
+
 export interface DeobfuscateOptions {
   /**
    * ECMA version to use when parsing AST (see acorn, default = 'latest')
@@ -47,7 +49,7 @@ export interface DeobfuscateOptions {
   /**
    * Custom transformers to use
    */
-  customTransformers: typeof Transformer[]
+  customTransformers: TransformerArray
 
   /**
    * Rename identifiers (default = false)
@@ -90,7 +92,7 @@ export class Deobfuscator {
   ): Promise<Program> {
     const options = this.buildOptions(_options)
 
-    let context = new Context(node, [
+    const defaultTransformers: TransformerArray = [
       ['Simplify', {}],
       ['MemberExpressionCleaner', {}],
       ['LiteralMap', {}],
@@ -112,7 +114,14 @@ export class Deobfuscator {
       ['DeadCode', {}],
       ['Simplify', {}],
       ['DeadCode', {}],
-    ])
+    ]
+
+    let context = new Context(
+      node,
+      options.customTransformers.length > 0
+        ? options.customTransformers
+        : defaultTransformers
+    )
 
     for (const t of context.transformers) {
       console.log('Running', t.name, 'transformer')
