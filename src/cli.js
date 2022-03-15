@@ -26,6 +26,11 @@ yargs
           default: 'latest',
           type: 'string',
           description: 'Set ECMA version for AST parser (see acorn docs)',
+        })
+        .option('config', {
+          alias: 'c',
+          type: 'string',
+          description: 'Supply a custom deobfuscation config (see docs)',
         }),
     (args) => {
       const abs = path.resolve(args.file)
@@ -34,10 +39,25 @@ yargs
         fs.readFile(abs, 'utf8', (err, source) => {
           if (err) return console.error('Failed to read file', err.code)
           const deobfuscator = new Deobfuscator()
-          const opts = {
+          let opts = {
             rename: args.rename,
             ecmaVersion: args.ecmaVersion,
           }
+
+          if (args.config) {
+            let configPath = path.resolve(args.config)
+            if (!fs.existsSync(configPath)) {
+              console.error(
+                'Configuration file',
+                '"' + args.config + '"',
+                'does not exist on disk'
+              )
+              process.exit(1)
+            }
+            Object.assign(opts, require(configPath))
+            console.log('Loaded config from', '"' + args.config + '"')
+          }
+
           // ready
           deobfuscator.deobfuscateSource(source, opts).then((source) => {
             let ext = path.extname(abs)
