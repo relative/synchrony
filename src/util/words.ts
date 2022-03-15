@@ -1958,7 +1958,7 @@ export function generateRandomWords(mt: MersenneTwister, length = 4): string[] {
   let words: string[] = []
   for (let i = 0; i < length + 0; ++i) {
     let min = i * (wordList.length / length),
-      max = i + 1 * (wordList.length / length)
+      max = (i + 1) * (wordList.length / length)
     let rand = (mt.random() * (max - min) + min) | 0,
       word = [...wordList[rand]]
     word.unshift(word.shift()!.toUpperCase())
