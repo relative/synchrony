@@ -11,6 +11,7 @@ import {
   Identifier,
   Pattern,
   ExpressionStatement,
+  FunctionExpression,
 } from '../util/types'
 import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
@@ -160,15 +161,38 @@ export default class Demangle extends Transformer<DemangleOptions> {
             ifst.consequent.body.length > 1 // maybe ==2
           ) {
             if (
-              Guard.isVariableDeclaration(ifst.consequent.body[0]) &&
-              ifst.consequent.body[0].declarations.length > 0 &&
-              ifst.consequent.body[0].declarations[0].init &&
-              Guard.isFunctionExpression(
-                ifst.consequent.body[0].declarations[0].init
-              )
+              (Guard.isVariableDeclaration(ifst.consequent.body[0]) &&
+                ifst.consequent.body[0].declarations.length > 0 &&
+                ifst.consequent.body[0].declarations[0].init &&
+                Guard.isFunctionExpression(
+                  ifst.consequent.body[0].declarations[0].init
+                )) ||
+              (Guard.isExpressionStatement(ifst.consequent.body[0]) &&
+                Guard.isAssignmentExpression(
+                  ifst.consequent.body[0].expression
+                ) &&
+                Guard.isMemberExpression(
+                  ifst.consequent.body[0].expression.left
+                ) &&
+                Guard.isIdentifier(
+                  ifst.consequent.body[0].expression.left.object
+                ) &&
+                Guard.isIdentifier(
+                  ifst.consequent.body[0].expression.left.property
+                ) &&
+                Guard.isFunctionExpression(
+                  ifst.consequent.body[0].expression.right
+                ))
             ) {
-              let dfx = ifst.consequent.body[0].declarations[0].init,
-                dfxb = dfx.body.body
+              let dfx: FunctionExpression = (
+                  Guard.isExpressionStatement(ifst.consequent.body[0])
+                    ? (
+                        ifst.consequent.body[0]
+                          .expression as AssignmentExpression
+                      ).right
+                    : ifst.consequent.body[0].declarations[0].init
+                ) as FunctionExpression,
+                dfxb = dfx!.body.body
               if (dfxb.length > 1) {
                 if (
                   Guard.isForStatement(dfxb[0]) &&
@@ -224,46 +248,46 @@ export default class Demangle extends Transformer<DemangleOptions> {
                                     },
                                   ],
                                 })
-                            }
-                          } else if (
-                            Guard.isLiteralString(
+                            } else if (
+                              Guard.isLiteralString(
+                                dfxb[0].body.body[0].expression.right.callee
+                                  .object
+                              ) &&
+                              Guard.isIdentifier(
+                                dfxb[0].body.body[0].expression.right.callee
+                                  .property
+                              ) &&
                               dfxb[0].body.body[0].expression.right.callee
-                                .object
-                            ) &&
-                            Guard.isIdentifier(
-                              dfxb[0].body.body[0].expression.right.callee
-                                .property
-                            ) &&
-                            dfxb[0].body.body[0].expression.right.callee
-                              .property.name === 'indexOf'
-                          ) {
-                            // this is if the charset gets moved (it won't)
-                            // just in case though
-                            let charset =
-                              dfxb[0].body.body[0].expression.right.callee
-                                .object.value
-                            if (charset.length === 65)
-                              dfxb.splice(0, 0, {
-                                type: 'VariableDeclaration',
-                                kind: 'const',
-                                start: 0,
-                                end: 0,
-                                declarations: [
-                                  {
-                                    type: 'VariableDeclarator',
-                                    id: {
-                                      type: 'Identifier',
-                                      name: 'charset',
-                                    } as Pattern,
-                                    init: {
-                                      type: 'Literal',
-                                      value: charset,
+                                .property.name === 'indexOf'
+                            ) {
+                              // this is if the charset gets moved (it won't)
+                              // just in case though
+                              let charset =
+                                dfxb[0].body.body[0].expression.right.callee
+                                  .object.value
+                              if (charset.length === 65)
+                                dfxb.splice(0, 0, {
+                                  type: 'VariableDeclaration',
+                                  kind: 'const',
+                                  start: 0,
+                                  end: 0,
+                                  declarations: [
+                                    {
+                                      type: 'VariableDeclarator',
+                                      id: {
+                                        type: 'Identifier',
+                                        name: 'charset',
+                                      } as Pattern,
+                                      init: {
+                                        type: 'Literal',
+                                        value: charset,
+                                      },
+                                      start: 0,
+                                      end: 0,
                                     },
-                                    start: 0,
-                                    end: 0,
-                                  },
-                                ],
-                              })
+                                  ],
+                                })
+                            }
                           }
                         }
                       }

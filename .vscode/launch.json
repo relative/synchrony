@@ -10,7 +10,11 @@
       "name": "Launch Program",
       "skipFiles": ["<node_internals>/**"],
       "program": "${workspaceFolder}\\dist\\cli.js",
-      "args": ["scratch/out.js"],
+      "args": [
+        "-c",
+        "D:\\perimeterx\\PXnp9B16Cq\\hc\\config2.json",
+        "D:\\perimeterx\\PXnp9B16Cq\\hc\\captcha.cleaned.js"
+      ],
       "console": "externalTerminal",
       "outFiles": ["${workspaceFolder}/dist/**/*.js"]
     }

@@ -31,6 +31,7 @@ import {
   FunctionDeclaration,
   ArrowFunctionExpression,
   ForStatement,
+  LogicalExpression,
 } from './types'
 
 type Node = ENode | SNode
@@ -142,4 +143,8 @@ export function isForStatement(node: Node): node is ForStatement {
 
 export function isObjectExpresesion(node: Node): node is ObjectExpression {
   return node.type === 'ObjectExpression'
+}
+
+export function isLogicalExpression(node: Node): node is LogicalExpression {
+  return node.type === 'LogicalExpression'
 }

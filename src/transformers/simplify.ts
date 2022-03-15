@@ -7,6 +7,8 @@ import {
   Node,
   Identifier,
   BlockStatement,
+  IfStatement,
+  Statement,
 } from '../util/types'
 import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
@@ -264,6 +266,40 @@ export default class Simplify extends Transformer<SimplifyOptions> {
     return this
   }
 
+  logicalExpression(context: Context) {
+    walk(context.ast, {
+      ExpressionStatement(exst) {
+        if (!Guard.isExpressionStatement(exst)) return
+        if (!Guard.isLogicalExpression(exst.expression)) return
+        if (!Guard.isBinaryExpression(exst.expression.left)) return
+        if (!Guard.isSequenceExpression(exst.expression.right)) return
+
+        const exprs = [...exst.expression.right.expressions].map((e) =>
+          (e.type as string) !== 'ExpressionStatement'
+            ? {
+                type: 'ExpressionStatement',
+                start: e.start,
+                end: e.end,
+                expression: e,
+              }
+            : e
+        ) as Statement[]
+
+        sp<IfStatement>(exst, {
+          type: 'IfStatement',
+          test: exst.expression.left,
+          consequent: {
+            type: 'BlockStatement',
+            start: 0,
+            end: 0,
+            body: exprs,
+          },
+        })
+      },
+    })
+    return this
+  }
+
   fixup(context: Context) {
     // convert negative numlits to UnaryExpressions
     // negative numlits cause error on codegen
@@ -291,5 +327,6 @@ export default class Simplify extends Transformer<SimplifyOptions> {
       .conditionalExpression(context)
       .singleToBlock(context)
       .fixup(context)
+      .logicalExpression(context)
   }
 }

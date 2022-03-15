@@ -15,6 +15,9 @@ import {
   Literal,
   UnaryExpression,
   Expression,
+  BinaryExpression,
+  VariableDeclarator,
+  NumericLiteral,
 } from '../util/types'
 import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
@@ -457,13 +460,67 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
           // possibly B64/RC4 type decoder
           if (Guard.isIfStatement(body[2])) {
             // check for B64 charset
+
+            if (!Guard.isBlockStatement(body[2].consequent)) return
+            if (body[2].consequent.body.length <= 1) return
             if (
-              Guard.isBlockStatement(body[2].consequent) &&
-              body[2].consequent.body.length === 2 &&
+              Guard.isExpressionStatement(body[2].consequent.body[0]) &&
+              Guard.isAssignmentExpression(
+                body[2].consequent.body[0].expression
+              )
+            ) {
+              sp<VariableDeclaration>(body[2].consequent.body[0], {
+                type: 'VariableDeclaration',
+                declarations: [
+                  {
+                    type: 'VariableDeclarator',
+                    start: 0,
+                    end: 0,
+                    id: {
+                      type: 'Identifier',
+                      start: 0,
+                      end: 0,
+                      name: 'b64dec',
+                    },
+                    init: body[2].consequent.body[0].expression.right,
+                  },
+                ],
+              })
+            }
+            if (
+              Guard.isExpressionStatement(body[2].consequent.body[1]) &&
+              Guard.isAssignmentExpression(
+                body[2].consequent.body[1].expression
+              )
+            ) {
+              sp<VariableDeclaration>(body[2].consequent.body[1], {
+                type: 'VariableDeclaration',
+                declarations: [
+                  {
+                    type: 'VariableDeclarator',
+                    start: 0,
+                    end: 0,
+                    id: {
+                      type: 'Identifier',
+                      start: 0,
+                      end: 0,
+                      name: 'rc4dec',
+                    },
+                    init: body[2].consequent.body[1].expression.right,
+                  },
+                ],
+              })
+            }
+
+            if (
               Guard.isVariableDeclaration(body[2].consequent.body[0]) &&
               Guard.isFunctionExpression(
                 body[2].consequent.body[0].declarations[0].init!
-              )
+              ) &&
+              (!Guard.isVariableDeclaration(body[2].consequent.body[1]) ||
+                !Guard.isFunctionExpression(
+                  body[2].consequent.body[1].declarations[0].init!
+                ))
             ) {
               let fx = body[2].consequent.body[0].declarations[0].init,
                 fxb = fx.body.body
@@ -478,7 +535,6 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
                 }
               }
             } else if (
-              Guard.isBlockStatement(body[2].consequent) &&
               body[2].consequent.body.length >= 3 &&
               // b64
               Guard.isVariableDeclaration(body[2].consequent.body[0]) &&
@@ -527,9 +583,102 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
     return this
   }
 
+  calcShift = (
+    context: Context,
+    breakCond: number,
+    stringArrayIdent: string,
+    parseIntChain: BinaryExpression
+  ) => {
+    const { util_decode, literals_to_arg_array } = this
+    const st = new Simplify({})
+    // String eval loop
+    // push/shift should only have #size unique combinations I think
+
+    const stringArray = context.stringArrays.find(
+      (i) => i.identifier === stringArrayIdent
+    )!
+    let maxLoops = stringArray.strings.length * 2,
+      iteration = 0
+    while (true) {
+      iteration++
+      if (iteration > maxLoops) {
+        throw new Error(
+          `Push/shift calculation failed (iter=${iteration}>maxLoops=${maxLoops})`
+        )
+      }
+      // Classes suck
+      const bpic = immutate(parseIntChain)
+      let hasNaN = false
+
+      stringArray.strings.push(stringArray.strings.shift() as string)
+
+      // convert -?parseInt(strdec(idx)) / n [+*] $0 chain
+      walk(bpic, {
+        CallExpression(node) {
+          // find parseInts
+          if (
+            !Guard.isIdentifier(node.callee) ||
+            node.callee.name !== 'parseInt'
+          )
+            return
+
+          if (
+            node.arguments.length !== 1 ||
+            node.arguments[0].type !== 'CallExpression' ||
+            node.arguments[0].callee.type !== 'Identifier' ||
+            node.arguments[0].arguments.length === 0 ||
+            node.arguments[0].arguments.length > 5
+          )
+            return
+
+          if (
+            node.arguments[0].arguments[0].type !== 'Literal' &&
+            node.arguments[0].arguments[0].type !== 'UnaryExpression'
+          )
+            return
+          let val = -1
+          try {
+            let args = literals_to_arg_array(node.arguments[0].arguments)
+            val = parseInt(
+              util_decode(context, node.arguments[0].callee.name, args)
+            )
+          } catch (err) {
+            throw err
+          }
+
+          if (isNaN(val)) {
+            sp<Identifier>(node, {
+              type: 'Identifier',
+              name: 'NaN',
+            })
+            hasNaN = true
+          } else {
+            sp<Literal>(node, {
+              type: 'Literal',
+              value: val,
+            })
+          }
+        },
+      })
+
+      if (hasNaN) {
+        continue
+      } else {
+        // use our SimplifyTransformer to calculate end value
+        st.math(bpic)
+        if (
+          (bpic as any).type === 'Literal' &&
+          (bpic as Literal).value === breakCond
+        )
+          break
+      }
+    }
+    context.shiftedArrays++
+  }
+
   // Locate push/shift pair inside IIFE
   shiftFinder(context: Context) {
-    const { util_decode, literals_to_arg_array } = this
+    const { calcShift } = this
     // retn TRUE if remove .
     function visitor(node: Node) {
       if (
@@ -589,8 +738,6 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
       //pic = loopBody[0].block.body[0].declarations[0].init
       if (pic.type !== 'BinaryExpression') return
 
-      let st = new Simplify({})
-
       const stringArrayIdent = node.arguments[0].name
 
       const stringArray = context.stringArrays.find(
@@ -601,85 +748,7 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
           `Failed to find string array with identifier "${stringArrayIdent}" for push/shift calc`
         )
 
-      // String eval loop
-      // push/shift should only have #size unique combinations I think
-      let maxLoops = stringArray.strings.length * 2,
-        iteration = 0
-      while (true) {
-        iteration++
-        if (iteration > maxLoops) {
-          throw new Error(
-            `Push/shift calculation failed (iter=${iteration}>maxLoops=${maxLoops})`
-          )
-        }
-        // Classes suck
-        const bpic = immutate(pic)
-        let hasNaN = false
-
-        stringArray.strings.push(stringArray.strings.shift() as string)
-
-        // convert -?parseInt(strdec(idx)) / n [+*] $0 chain
-        walk(bpic, {
-          CallExpression(node) {
-            // find parseInts
-            if (
-              !Guard.isIdentifier(node.callee) ||
-              node.callee.name !== 'parseInt'
-            )
-              return
-
-            if (
-              node.arguments.length !== 1 ||
-              node.arguments[0].type !== 'CallExpression' ||
-              node.arguments[0].callee.type !== 'Identifier' ||
-              node.arguments[0].arguments.length === 0 ||
-              node.arguments[0].arguments.length > 5
-            )
-              return
-
-            if (
-              node.arguments[0].arguments[0].type !== 'Literal' &&
-              node.arguments[0].arguments[0].type !== 'UnaryExpression'
-            )
-              return
-            let val = -1
-            try {
-              let args = literals_to_arg_array(node.arguments[0].arguments)
-              val = parseInt(
-                util_decode(context, node.arguments[0].callee.name, args)
-              )
-            } catch (err) {
-              throw err
-            }
-
-            if (isNaN(val)) {
-              sp<Identifier>(node, {
-                type: 'Identifier',
-                name: 'NaN',
-              })
-              hasNaN = true
-            } else {
-              sp<Literal>(node, {
-                type: 'Literal',
-                value: val,
-              })
-            }
-          },
-        })
-
-        if (hasNaN) {
-          continue
-        } else {
-          // use our SimplifyTransformer to calculate end value
-          st.math(bpic)
-          if (
-            (bpic as any).type === 'Literal' &&
-            (bpic as Literal).value === breakCond
-          )
-            break
-        }
-      }
-
+      calcShift(context, breakCond as number, stringArray.identifier, pic)
       context.log('Found push/shift IIFE breakCond =', breakCond)
       if (context.removeGarbage) {
         return true
@@ -697,6 +766,128 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
             node.expression.expressions = node.expression.expressions.filter(
               (d) => !rm.includes(`${d.start}!${d.end}`)
             )
+          }
+        } else {
+          if (visitor(node.expression)) {
+            ;(node as any).type = 'EmptyStatement'
+          }
+        }
+      },
+    })
+    return this
+  }
+
+  shiftFinder2(context: Context) {
+    const { calcShift } = this
+    function visitor(node: Node) {
+      if (
+        !Guard.isCallExpression(node) ||
+        node.callee.type !== 'FunctionExpression'
+      )
+        return false
+
+      const body = node.callee.body.body,
+        bRev = [...body].reverse()
+
+      const scope = context.scopeManager.acquire(node.callee)
+      if (!scope) return
+
+      let foundPushShift = false,
+        stringArrayRef: string
+
+      walk(node, {
+        ExpressionStatement(exp) {
+          if (!Guard.isCallExpression(exp.expression)) return
+          if (exp.expression.arguments.length === 0) return
+          if (!Guard.isMemberExpression(exp.expression.callee)) return
+          if (!Guard.isIdentifier(exp.expression.callee.object)) return
+          if (!Guard.isIdentifier(exp.expression.callee.property)) return
+          stringArrayRef = exp.expression.callee.object.name
+
+          if (exp.expression.callee.property.name !== 'push') return
+          const arg = exp.expression.arguments[0]
+          if (!Guard.isCallExpression(arg)) return
+          if (arg.arguments.length !== 0) return
+          if (!Guard.isMemberExpression(arg.callee)) return
+          if (!Guard.isIdentifier(arg.callee.object)) return
+          if (!Guard.isIdentifier(arg.callee.property)) return
+          if (arg.callee.object.name !== stringArrayRef) return
+          if (arg.callee.property.name !== 'shift') return
+          foundPushShift = true
+        },
+      })
+      if (!foundPushShift) return false
+
+      let foundStringArrayVar = scope.variables.find(
+        (i) => i.name === stringArrayRef
+      )
+      if (!foundStringArrayVar) return false
+
+      if (foundStringArrayVar.defs.length === 0) return false
+      const def = foundStringArrayVar.defs[0],
+        dnode = def.node as VariableDeclarator
+      if (dnode.type !== 'VariableDeclarator') return false
+      if (!dnode.init || !Guard.isCallExpression(dnode.init)) return false
+
+      if (!Guard.isIdentifier(dnode.init.callee)) return false
+      const stringArrayName = dnode.init.callee.name
+      const stringArrayFunc = context.stringArrays.find(
+        (i) => i.identifier === stringArrayName
+      )
+      if (!stringArrayFunc) return false
+
+      let foundBinExp = false,
+        breakCond: number | undefined,
+        pic: BinaryExpression | undefined
+      walk(node, {
+        IfStatement(ifs) {
+          if (!Guard.isBinaryExpression(ifs.test)) return
+          if (ifs.test.operator !== '==' && ifs.test.operator !== '===') return
+          let bc: NumericLiteral | undefined, bx: BinaryExpression | undefined
+          if (Guard.isLiteralNumeric(ifs.test.left)) {
+            if (!Guard.isBinaryExpression(ifs.test.right)) return
+            bc = ifs.test.left
+            bx = ifs.test.right
+          } else if (Guard.isLiteralNumeric(ifs.test.right)) {
+            if (!Guard.isBinaryExpression(ifs.test.left)) return
+            bc = ifs.test.right
+            bx = ifs.test.left
+          }
+
+          if (!bc || !bx) return
+          pic = bx
+          breakCond = bc.value
+          foundBinExp = true
+        },
+      })
+      if (!foundBinExp || !breakCond || !pic) return false
+
+      context.log(
+        'Found push/shift (#2) IIFE stringArray =',
+        stringArrayFunc.identifier,
+        'breakCond =',
+        breakCond
+      )
+      calcShift(context, breakCond, stringArrayFunc.identifier, pic)
+
+      return true
+    }
+    walk(context.ast, {
+      ExpressionStatement(node) {
+        if (Guard.isSequenceExpression(node.expression)) {
+          let rm: string[] = []
+          for (const exp of node.expression.expressions) {
+            if (visitor(exp)) rm.push(`${exp.start}!${exp.end}`)
+          }
+          if (rm) {
+            node.expression.expressions = node.expression.expressions.filter(
+              (d) => !rm.includes(`${d.start}!${d.end}`)
+            )
+          }
+        } else if (Guard.isUnaryExpression(node.expression)) {
+          if (!Guard.isCallExpression(node.expression.argument)) return
+          if (visitor(node.expression.argument)) {
+            ;(node as any).type = 'EmptyStatement'
           }
         } else {
           if (visitor(node.expression)) {
@@ -924,6 +1115,13 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
       context.log('Searching for more function references')
     }
 
-    this.shiftFinder(context).decoder(context)
+    this.shiftFinder(context).shiftFinder2(context).decoder(context)
+
+    context.log(
+      'shifted =',
+      context.shiftedArrays,
+      'arrays =',
+      context.stringArrays.length
+    )
   }
 }

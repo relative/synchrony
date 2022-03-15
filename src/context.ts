@@ -89,6 +89,7 @@ export default class Context {
   ast: Program
   source?: string
 
+  shiftedArrays: number = 0
   stringArrays: StringArray[] = []
   stringDecoders: DecoderFunction[] = []
   stringDecoderReferences: DecoderReference[] = []
