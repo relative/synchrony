@@ -27,6 +27,7 @@ export default class ArrayMap extends Transformer<ArrayMapOptions> {
     function visitor(func: Function) {
       if (!Guard.isBlockStatement(func.body)) return
       const body = filterEmptyStatements(func.body.body)
+      if (!body[0]) return
       if (!Guard.isVariableDeclaration(body[0])) return
       const vd = body[0]
       if (vd.declarations.length !== 1) return
