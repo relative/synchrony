@@ -104,22 +104,22 @@ export default class LiteralMap extends Transformer<LiteralMapOptions> {
       if (!scope) return
 
       for (const v of scope.variables) {
+        if (/*func.start === 3547 && */ v.name === 'q') debugger
         if (v.name === 'arguments') continue
         if (v.identifiers.length !== 1) continue // ?
         if (v.defs.length !== 1) continue // ?
-        if (v.defs[0].type !== 'Variable') continue // ?
-        const vd = v.defs[0].node as VariableDeclarator
+
+        const def = v.defs[0]
+        if (def.type !== 'Variable') continue // ?
+        const vd = def.node as VariableDeclarator
 
         if (vd.init?.type !== 'Literal') continue
         if (typeof vd.init.value === 'string' && vd.init.value.length === 65)
           continue
-        // prevents us from replacing overwrote variables
-        if (!v.references.every((ref) => ref.init || ref.isReadOnly())) continue
 
         for (const ref of v.references) {
           // Dont replace our init reference lol
           if (ref.init) {
-            let def = v.defs[0]
             let node = def.node as VariableDeclarator
             let p = def.parent as VariableDeclaration
             if (p.type === 'VariableDeclaration') {

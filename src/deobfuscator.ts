@@ -1,4 +1,4 @@
-import escodegen from 'escodegen'
+import escodegen from '@javascript-obfuscator/escodegen'
 import * as acorn from 'acorn' // no, it cannot be a default import
 import { Transformer, TransformerOptions } from './transformers/transformer'
 import { Node, Program, sp } from './util/types'
@@ -129,7 +129,9 @@ export class Deobfuscator {
     }
 
     if (options.rename) {
-      let source = escodegen.generate(context.ast),
+      let source = escodegen.generate(context.ast, {
+          sourceMapWithCode: true,
+        }).code,
         parsed = acorn.parse(source, this.buildAcornOptions(options)) as Program
       context = new Context(parsed, [['Rename', {}]])
       context.hash = sourceHash(source)
@@ -153,7 +155,9 @@ export class Deobfuscator {
     // perform transforms
     ast = await this.deobfuscateNode(ast, options)
 
-    source = escodegen.generate(ast)
+    source = escodegen.generate(ast, {
+      sourceMapWithCode: true,
+    }).code
     try {
       source = prettier.format(source, {
         semi: false,

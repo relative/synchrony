@@ -315,6 +315,14 @@ export default class Simplify extends Transformer<SimplifyOptions> {
         })
       },
     })
+
+    // fix empty VariableDeclarations
+    walk(context.ast, {
+      VariableDeclaration(node) {
+        if (node.declarations.length !== 0) return
+        ;(node as any).type = 'EmptyStatement'
+      },
+    })
     return this
   }
 

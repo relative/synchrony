@@ -1,6 +1,7 @@
 lockfileVersion: 5.3
 
 specifiers:
+  '@javascript-obfuscator/escodegen': 2.3.0
   '@types/escodegen': 0.0.7
   '@types/eslint-scope': 3.7.3
   '@types/estree': 0.0.51
@@ -22,9 +23,9 @@ specifiers:
   yargs: 17.3.1
 
 dependencies:
+  '@javascript-obfuscator/escodegen': 2.3.0
   acorn: 8.7.0
   acorn-walk: 8.2.0
-  escodegen: 2.0.0
   eslint-scope: 7.1.1
   mersenne-twister: 1.1.0
   prettier: 2.5.1
@@ -39,6 +40,7 @@ devDependencies:
   '@types/prettier': 2.4.4
   '@types/yargs': 17.0.8
   esbuild: 0.14.21
+  escodegen: 2.0.0
   javascript-obfuscator: 4.0.0
   rimraf: 3.0.2
   typedoc: 0.22.11_typescript@4.5.5
@@ -56,12 +58,10 @@ packages:
       optionator: 0.8.3
     optionalDependencies:
       source-map: 0.6.1
-    dev: true
 
   /@javascript-obfuscator/estraverse/5.4.0:
     resolution: {integrity: sha512-CZFX7UZVN9VopGbjTx4UXaXsi9ewoM1buL0kY7j1ftYdSs7p2spv9opxFjHlQ/QGTgh4UqufYqJJ0WKLml7b6w==}
     engines: {node: '>=4.0'}
-    dev: true
 
   /@types/escodegen/0.0.7:
     resolution: {integrity: sha512-46oENdSRNEJXCNrPJoC3vRolZJpfeEm7yvATkd2bCncKFG0PUEyfBCaoacfpcXH4Y5RRuqdVj3J7TI+wwn2SbQ==}
@@ -512,7 +512,7 @@ packages:
       optionator: 0.8.3
     optionalDependencies:
       source-map: 0.6.1
-    dev: false
+    dev: true
 
   /eslint-scope/7.1.0:
     resolution: {integrity: sha512-aWwkhnS0qAXqNOgKOK0dJ2nvzEbhEvpy8OlJ9kZ0FeZnA6zpjv1/Vei+puGFFX7zkPCkHHXb7IDX3A+7yPrRWg==}
