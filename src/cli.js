@@ -31,6 +31,11 @@ yargs
           alias: 'c',
           type: 'string',
           description: 'Supply a custom deobfuscation config (see docs)',
+        })
+        .option('output', {
+          alias: 'o',
+          type: 'string',
+          description: 'Where to output deobfuscated file',
         }),
     (args) => {
       const abs = path.resolve(args.file)
@@ -42,6 +47,7 @@ yargs
           let opts = {
             rename: args.rename,
             ecmaVersion: args.ecmaVersion,
+            output: args.output,
           }
 
           if (args.config) {
@@ -61,8 +67,9 @@ yargs
           // ready
           deobfuscator.deobfuscateSource(source, opts).then((source) => {
             let ext = path.extname(abs)
-            let newFilename =
-              abs.substring(0, abs.length - ext.length) + '.cleaned' + ext
+            let newFilename = opts.output
+              ? opts.output
+              : abs.substring(0, abs.length - ext.length) + '.cleaned' + ext
             fs.writeFile(newFilename, source, 'utf8', (err) => {
               if (err) return console.error('Failed to write file', err.code)
             })
