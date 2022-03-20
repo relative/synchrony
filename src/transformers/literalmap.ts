@@ -117,6 +117,9 @@ export default class LiteralMap extends Transformer<LiteralMapOptions> {
         if (typeof vd.init.value === 'string' && vd.init.value.length === 65)
           continue
 
+        // prevents us from replacing overwrote variables
+        if (!v.references.every((ref) => ref.init || ref.isReadOnly())) continue
+
         for (const ref of v.references) {
           // Dont replace our init reference lol
           if (ref.init) {
