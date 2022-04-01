@@ -9,12 +9,14 @@ import {
   BlockStatement,
   IfStatement,
   Statement,
+  Function,
+  CallExpression,
 } from '../util/types'
 import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
 import * as Guard from '../util/guard'
 
-import { unaryExpressionToNumber } from '../util/translator'
+import { unaryExpressionToNumber, createLiteral } from '../util/translator'
 import { mathEval } from '../util/math'
 
 import Context from '../context'
@@ -134,10 +136,11 @@ export default class Simplify extends Transformer<SimplifyOptions> {
             // will throw error on codegen, ignore
             return
           }
-          sp<NumericLiteral>(node, {
+          sp<any>(node, createLiteral(val))
+          /*sp<NumericLiteral>(node, {
             type: 'Literal',
             value: val,
-          })
+          })*/
         }
       },
     })
@@ -180,25 +183,34 @@ export default class Simplify extends Transformer<SimplifyOptions> {
     return this
   }
 
-  literalComparison(context: Context) {
+  literalComparison(_node: Node) {
     const { ALLOWED_COMPARISON_OPERS, binEval } = this
-    walk(context.ast, {
+    walk(_node, {
       BinaryExpression(node) {
         if (
           !Guard.isLiteralNumeric(node.left) &&
+          !Guard.isUnaryExpressionNumeric(node.left) &&
           !Guard.isLiteralString(node.left)
         )
           return
 
         if (
           !Guard.isLiteralNumeric(node.right) &&
+          !Guard.isUnaryExpressionNumeric(node.right) &&
           !Guard.isLiteralString(node.right)
         )
           return
 
         if (!ALLOWED_COMPARISON_OPERS.includes(node.operator)) return
 
-        let res = binEval(node.left.value, node.operator, node.right.value)
+        let lhs = Guard.isLiteral(node.left)
+            ? node.left.value
+            : unaryExpressionToNumber(node.left),
+          rhs = Guard.isLiteral(node.right)
+            ? node.right.value
+            : unaryExpressionToNumber(node.right)
+
+        let res = binEval(lhs, node.operator, rhs)
         sp<Literal>(node, {
           type: 'Literal',
           value: res,
@@ -242,8 +254,8 @@ export default class Simplify extends Transformer<SimplifyOptions> {
     return this
   }
 
-  conditionalExpression(context: Context) {
-    walk(context.ast, {
+  conditionalExpression(_node: Node) {
+    walk(_node, {
       ConditionalExpression(node, _, ancestors) {
         if (!Guard.isLiteralBoolean(node.test)) return
         if (!node.test.value) {
@@ -319,8 +331,65 @@ export default class Simplify extends Transformer<SimplifyOptions> {
     // fix empty VariableDeclarations
     walk(context.ast, {
       VariableDeclaration(node) {
+        node.declarations = node.declarations.filter(
+          (i) => !i.init || (i.init as any).type !== 'EmptyStatement'
+        )
         if (node.declarations.length !== 0) return
         ;(node as any).type = 'EmptyStatement'
+      },
+    })
+    return this
+  }
+
+  // "simplify"
+  fixProxies(context: Context) {
+    walk(context.ast, {
+      CallExpression(cx) {
+        if (
+          !Guard.isFunctionExpression(cx.callee) &&
+          !Guard.isArrowFunctionExpression(cx.callee)
+        )
+          return
+        if (!Guard.isBlockStatement(cx.callee.body)) return
+        if (cx.callee.body.body.length !== 1) return
+        if (!Guard.isReturnStatement(cx.callee.body.body[0])) return
+        const retn = cx.callee.body.body[0].argument
+        if (!retn) return
+        if (
+          [
+            'FunctionExpression',
+            'ArrowFunctionExpression',
+            'FunctionDeclaration',
+          ].includes(retn.type)
+        ) {
+          sp<Function>(cx, retn as unknown as Function)
+        } else if (Guard.isCallExpression(retn)) {
+          // (function (a, b) {
+          //   return b(a());
+          // }(f, h));
+          //  - to -
+          // h(f())
+          // potentially move this into its own transformer
+          if (
+            !cx.arguments.every(
+              (a) => Guard.isLiteral(a) || Guard.isIdentifier(a)
+            )
+          )
+            return
+          const scope = context.scopeManager.acquire(cx.callee)
+          if (!scope) return
+          for (const v of scope.variables) {
+            if (v.defs.length !== 1) continue
+            let def = v.defs[0]
+            if (def.type !== 'Parameter') continue
+            let pidx = (def as any).index as number
+            for (const ref of v.references) {
+              sp<any>(ref.identifier, cx.arguments[pidx])
+            }
+          }
+
+          sp<CallExpression>(cx, retn)
+        }
       },
     })
     return this
@@ -331,10 +400,11 @@ export default class Simplify extends Transformer<SimplifyOptions> {
       .stringConcat(context)
       .math(context.ast)
       .truthyFalsy(context)
-      .literalComparison(context)
-      .conditionalExpression(context)
+      .literalComparison(context.ast)
+      .conditionalExpression(context.ast)
       .singleToBlock(context)
       .fixup(context)
       .logicalExpression(context)
+      .fixProxies(context)
   }
 }

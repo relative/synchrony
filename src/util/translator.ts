@@ -1,4 +1,9 @@
-import { UnaryExpression, Literal } from './types'
+import {
+  UnaryExpression,
+  Literal,
+  NumericLiteral,
+  NumericUnaryExpression,
+} from './types'
 import * as Guard from './guard'
 
 export function unaryExpressionToNumber(
@@ -29,4 +34,25 @@ export function literalOrUnaryExpressionToNumber(
     return unaryExpressionToNumber(node, pi)
   }
   throw new TypeError("Couldn't translate node to Number")
+}
+
+export function createLiteral(
+  value: number
+): NumericLiteral | NumericUnaryExpression {
+  return value < 0
+    ? ({
+        type: 'UnaryExpression',
+        prefix: true,
+        operator: '-',
+        argument: {
+          type: 'Literal',
+          start: 0,
+          end: 0,
+          value: Math.abs(value),
+        },
+      } as NumericUnaryExpression)
+    : ({
+        type: 'Literal',
+        value,
+      } as NumericLiteral)
 }

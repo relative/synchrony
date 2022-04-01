@@ -19,6 +19,8 @@ import DeadCode from './transformers/deadcode'
 import Demangle from './transformers/demangle'
 import ArrayMap from './transformers/arraymap'
 import Rename from './transformers/rename'
+import JSCCalculator from './transformers/jsconfuser/calculator'
+import JSCControlFlow from './transformers/jsconfuser/controlflow'
 
 export enum DecoderFunctionType {
   SIMPLE,
@@ -159,6 +161,12 @@ export default class Context {
           break
         case 'rename':
           transformers.push(new Rename(opt))
+          break
+        case 'jsc-calculator':
+          transformers.push(new JSCCalculator(opt))
+          break
+        case 'jsc-controlflow':
+          transformers.push(new JSCControlFlow(opt))
           break
         default:
           throw new TypeError(
