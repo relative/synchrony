@@ -1071,8 +1071,11 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
           return
 
         if (
-          node.arguments[0].type !== 'Literal' &&
-          node.arguments[0].type !== 'UnaryExpression'
+          !node.arguments.every(
+            (node) =>
+              Guard.isUnaryExpressionNumeric(node) ||
+              Guard.isLiteralNumeric(node)
+          )
         )
           return
 
