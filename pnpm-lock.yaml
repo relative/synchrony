@@ -10,6 +10,7 @@ specifiers:
   '@types/prettier': 2.4.4
   '@types/yargs': 17.0.8
   acorn: 8.7.0
+  acorn-loose: 8.3.0
   acorn-walk: 8.2.0
   esbuild: 0.14.21
   escodegen: 2.0.0
@@ -25,6 +26,7 @@ specifiers:
 dependencies:
   '@javascript-obfuscator/escodegen': 2.3.0
   acorn: 8.7.0
+  acorn-loose: 8.3.0
   acorn-walk: 8.2.0
   eslint-scope: 7.1.1
   mersenne-twister: 1.1.0
@@ -114,6 +116,13 @@ packages:
     dependencies:
       '@types/yargs-parser': 20.2.1
     dev: true
+
+  /acorn-loose/8.3.0:
+    resolution: {integrity: sha512-75lAs9H19ldmW+fAbyqHdjgdCrz0pWGXKmnqFoh8PyVd1L2RIb4RzYrSjmopeqv3E1G3/Pimu6GgLlrGbrkF7w==}
+    engines: {node: '>=0.4.0'}
+    dependencies:
+      acorn: 8.7.0
+    dev: false
 
   /acorn-walk/8.2.0:
     resolution: {integrity: sha512-k+iyHEuPgSw6SbuDpGQM+06HQUa04DZ3o+F6CSzXMvvI5KMvnaEqXe+YVe555R9nn6GPt404fos4wcgpw12SDA==}

@@ -1,5 +1,6 @@
 import escodegen from '@javascript-obfuscator/escodegen'
 import * as acorn from 'acorn' // no, it cannot be a default import
+import * as acornLoose from 'acorn-loose'
 import { Transformer, TransformerOptions } from './transformers/transformer'
 import { Node, Program, sp } from './util/types'
 import Context from './context'
@@ -55,6 +56,16 @@ export interface DeobfuscateOptions {
    * Rename identifiers (default = false)
    */
   rename: boolean
+
+  /**
+   * Acorn source type
+   */
+  sourceType: 'module' | 'script'
+
+  /**
+   * Loose parsing (default = false)
+   */
+  loose: boolean
 }
 
 function sourceHash(str: string) {
@@ -70,6 +81,8 @@ export class Deobfuscator {
     transformChainExpressions: true,
     customTransformers: [],
     rename: false,
+    sourceType: 'module',
+    loose: false,
   }
 
   private buildOptions(
@@ -81,9 +94,18 @@ export class Deobfuscator {
   private buildAcornOptions(options: DeobfuscateOptions): acorn.Options {
     return {
       ecmaVersion: options.ecmaVersion,
+      sourceType: options.sourceType,
       // this is important for eslint-scope !!!!!!
       ranges: true,
     }
+  }
+
+  private parse(
+    input: string,
+    options: acorn.Options,
+    deobfOptions: DeobfuscateOptions
+  ): acorn.Node {
+    return (deobfOptions.loose ? acornLoose : acorn).parse(input, options)
   }
 
   public async deobfuscateNode(
@@ -132,7 +154,11 @@ export class Deobfuscator {
       let source = escodegen.generate(context.ast, {
           sourceMapWithCode: true,
         }).code,
-        parsed = acorn.parse(source, this.buildAcornOptions(options)) as Program
+        parsed = this.parse(
+          source,
+          this.buildAcornOptions(options),
+          options
+        ) as Program
       context = new Context(parsed, [['Rename', {}]])
       context.hash = sourceHash(source)
       for (const t of context.transformers) {
@@ -150,7 +176,7 @@ export class Deobfuscator {
   ): Promise<string> {
     const options = this.buildOptions(_options)
     const acornOptions = this.buildAcornOptions(options)
-    let ast = acorn.parse(source, acornOptions) as Program
+    let ast = this.parse(source, acornOptions, options) as Program
 
     // perform transforms
     ast = await this.deobfuscateNode(ast, options)
@@ -164,8 +190,8 @@ export class Deobfuscator {
         singleQuote: true,
 
         // https://github.com/prettier/prettier/pull/12172
-        parser(text, _opts) {
-          let ast = acorn.parse(text, acornOptions)
+        parser: (text, _opts) => {
+          let ast = this.parse(text, acornOptions, options)
           if (options.transformChainExpressions) {
             walk(ast as Node, {
               ChainExpression(cx) {

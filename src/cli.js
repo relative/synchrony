@@ -22,7 +22,7 @@ yargs
           description: 'Rename symbols automatically',
         })
         .option('ecma-version', {
-          alias: 'esversion',
+          alias: ['esversion', 'es'],
           default: 'latest',
           type: 'string',
           description: 'Set ECMA version for AST parser (see acorn docs)',
@@ -36,6 +36,18 @@ yargs
           alias: 'o',
           type: 'string',
           description: 'Where to output deobfuscated file',
+        })
+        .option('loose', {
+          alias: 'l',
+          type: 'boolean',
+          default: false,
+          description: 'Enable loose parsing',
+        })
+        .option('sourceType', {
+          alias: 'type',
+          type: 'string',
+          default: 'module',
+          description: "Source type for file ('script' or 'module')",
         }),
     (args) => {
       const abs = path.resolve(args.file)
@@ -48,6 +60,8 @@ yargs
             rename: args.rename,
             ecmaVersion: args.ecmaVersion,
             output: args.output,
+            loose: args.loose,
+            sourceType: args.sourceType,
           }
 
           if (args.config) {

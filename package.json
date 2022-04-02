@@ -43,6 +43,7 @@
   "dependencies": {
     "@javascript-obfuscator/escodegen": "2.3.0",
     "acorn": "8.7.0",
+    "acorn-loose": "8.3.0",
     "acorn-walk": "8.2.0",
     "eslint-scope": "7.1.1",
     "mersenne-twister": "1.1.0",
