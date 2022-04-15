@@ -142,7 +142,8 @@ export class Deobfuscator {
       node,
       options.customTransformers.length > 0
         ? options.customTransformers
-        : defaultTransformers
+        : defaultTransformers,
+      options.sourceType === 'module'
     )
 
     for (const t of context.transformers) {
@@ -159,7 +160,11 @@ export class Deobfuscator {
           this.buildAcornOptions(options),
           options
         ) as Program
-      context = new Context(parsed, [['Rename', {}]])
+      context = new Context(
+        parsed,
+        [['Rename', {}]],
+        options.sourceType === 'module'
+      )
       context.hash = sourceHash(source)
       for (const t of context.transformers) {
         console.log('(rename) Running', t.name, 'transformer')

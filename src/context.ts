@@ -111,14 +111,17 @@ export default class Context {
   constructor(
     ast: Program,
     transformers: [string, Partial<TransformerOptions>][],
-    source?: string
+    isModule: boolean,
+    source?: string,
   ) {
     this.ast = ast
     this.transformers = this.buildTransformerList(transformers)
 
     this.source = source
 
-    this.scopeManager = eslintScope.analyze(this.ast, {})
+    this.scopeManager = eslintScope.analyze(this.ast, {
+      sourceType: isModule ? 'module' : 'script',
+    })
   }
 
   public log(message?: any, ...optionalParams: any[]) {
