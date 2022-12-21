@@ -1069,12 +1069,12 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
           node.arguments[0].type === 'SpreadElement'
         )
           return
-
         if (
           !node.arguments.every(
             (node) =>
               Guard.isUnaryExpressionNumeric(node) ||
-              Guard.isLiteralNumeric(node)
+              Guard.isLiteralNumeric(node) ||
+              Guard.isLiteralString(node)
           )
         )
           return

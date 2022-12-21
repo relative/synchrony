@@ -10,7 +10,7 @@
       "name": "Launch Program",
       "skipFiles": ["<node_internals>/**"],
       "program": "${workspaceFolder}\\dist\\cli.js",
-      "args": ["-c", "scratch/jsc/c.json", "scratch/jsc/out.js"],
+      "args": ["scratch/sample.js"],
       "console": "externalTerminal",
       "outFiles": ["${workspaceFolder}/dist/**/*.js"]
     }
