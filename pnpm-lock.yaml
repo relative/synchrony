@@ -3,7 +3,7 @@ lockfileVersion: 5.4
 specifiers:
   '@javascript-obfuscator/escodegen': 2.3.0
   '@types/escodegen': 0.0.7
-  '@types/eslint-scope': 3.7.3
+  '@types/eslint-scope': 3.7.4
   '@types/estree': 0.0.51
   '@types/mersenne-twister': 1.1.2
   '@types/node': 17.0.17
@@ -35,7 +35,7 @@ dependencies:
 
 devDependencies:
   '@types/escodegen': 0.0.7
-  '@types/eslint-scope': 3.7.3
+  '@types/eslint-scope': 3.7.4
   '@types/estree': 0.0.51
   '@types/mersenne-twister': 1.1.2
   '@types/node': 17.0.17
@@ -69,8 +69,8 @@ packages:
     resolution: {integrity: sha512-46oENdSRNEJXCNrPJoC3vRolZJpfeEm7yvATkd2bCncKFG0PUEyfBCaoacfpcXH4Y5RRuqdVj3J7TI+wwn2SbQ==}
     dev: true
 
-  /@types/eslint-scope/3.7.3:
-    resolution: {integrity: sha512-PB3ldyrcnAicT35TWPs5IcwKD8S333HMaa2VVv4+wdvebJkjWuW/xESoB8IwRcog8HYVYamb1g/R31Qv5Bx03g==}
+  /@types/eslint-scope/3.7.4:
+    resolution: {integrity: sha512-9K4zoImiZc3HlIp6AVUDE4CWYx22a+lhSZMYNpbjW04+YF0KWj4pJXnEMjdnFTiQibFFmElcsasJXDbdI/EPhA==}
     dependencies:
       '@types/eslint': 8.4.1
       '@types/estree': 0.0.51

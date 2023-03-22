@@ -27,7 +27,7 @@
   "homepage": "https://github.com/relative/synchrony#readme",
   "devDependencies": {
     "@types/escodegen": "0.0.7",
-    "@types/eslint-scope": "3.7.3",
+    "@types/eslint-scope": "3.7.4",
     "@types/estree": "0.0.51",
     "@types/mersenne-twister": "1.1.2",
     "@types/node": "17.0.17",
