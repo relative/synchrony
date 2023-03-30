@@ -46,8 +46,8 @@ yargs
         .option('sourceType', {
           alias: 'type',
           type: 'string',
-          default: 'module',
-          description: "Source type for file ('script' or 'module')",
+          default: 'both',
+          description: "Source type for file ('script', 'module', or 'both')",
         }),
     (args) => {
       const abs = path.resolve(args.file)

@@ -59,8 +59,10 @@ export interface DeobfuscateOptions {
 
   /**
    * Acorn source type
+   *
+   * Both tries module first then script and uses whichever parses properly
    */
-  sourceType: 'module' | 'script'
+  sourceType: 'both' | 'module' | 'script'
 
   /**
    * Loose parsing (default = false)
@@ -75,13 +77,17 @@ function sourceHash(str: string) {
   return key >>> 0
 }
 
+interface SAcornOptions extends Omit<acorn.Options, 'sourceType'> {
+  sourceType: 'module' | 'script' | 'both' | undefined
+}
+
 export class Deobfuscator {
   public defaultOptions: DeobfuscateOptions = {
     ecmaVersion: 'latest',
     transformChainExpressions: true,
     customTransformers: [],
     rename: false,
-    sourceType: 'module',
+    sourceType: 'both',
     loose: false,
   }
 
@@ -91,7 +97,7 @@ export class Deobfuscator {
     return { ...this.defaultOptions, ...options }
   }
 
-  private buildAcornOptions(options: DeobfuscateOptions): acorn.Options {
+  private buildAcornOptions(options: DeobfuscateOptions): SAcornOptions {
     return {
       ecmaVersion: options.ecmaVersion,
       sourceType: options.sourceType,
@@ -102,10 +108,20 @@ export class Deobfuscator {
 
   private parse(
     input: string,
-    options: acorn.Options,
+    options: SAcornOptions,
     deobfOptions: DeobfuscateOptions
   ): acorn.Node {
-    return (deobfOptions.loose ? acornLoose : acorn).parse(input, options)
+    const a = deobfOptions.loose ? acornLoose : acorn
+    if (options.sourceType !== 'both')
+      return a.parse(input, options as acorn.Options)
+
+    try {
+      options.sourceType = deobfOptions.sourceType = 'module'
+      return a.parse(input, options as acorn.Options)
+    } catch (err) {
+      options.sourceType = deobfOptions.sourceType = 'script'
+      return a.parse(input, options as acorn.Options)
+    }
   }
 
   public async deobfuscateNode(
