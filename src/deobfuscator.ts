@@ -3,7 +3,7 @@ import * as acorn from 'acorn' // no, it cannot be a default import
 import * as acornLoose from 'acorn-loose'
 import { Transformer, TransformerOptions } from './transformers/transformer'
 import { Node, Program, sp } from './util/types'
-import Context from './context'
+import Context, { TransformerPair } from './context'
 import prettier from 'prettier'
 import { walk } from './util/walk'
 
@@ -31,8 +31,6 @@ type ecmaVersion =
   | 2022
   | 'latest'
 
-type TransformerArray = [string, Partial<TransformerOptions>][]
-
 export interface DeobfuscateOptions {
   /**
    * ECMA version to use when parsing AST (see acorn, default = 'latest')
@@ -50,7 +48,7 @@ export interface DeobfuscateOptions {
   /**
    * Custom transformers to use
    */
-  customTransformers: TransformerArray
+  customTransformers: TransformerPair[]
 
   /**
    * Rename identifiers (default = false)
@@ -130,7 +128,7 @@ export class Deobfuscator {
   ): Promise<Program> {
     const options = this.buildOptions(_options)
 
-    const defaultTransformers: TransformerArray = [
+    const defaultTransformers: TransformerPair[] = [
       ['Simplify', {}],
       ['MemberExpressionCleaner', {}],
       ['LiteralMap', {}],

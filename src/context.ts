@@ -87,6 +87,8 @@ interface StringArray {
   strings: string[]
 }
 
+export type TransformerPair = [string, Partial<TransformerOptions>]
+
 export default class Context {
   ast: Program
   source?: string
@@ -110,9 +112,9 @@ export default class Context {
 
   constructor(
     ast: Program,
-    transformers: [string, Partial<TransformerOptions>][],
+    transformers: TransformerPair[],
     isModule: boolean,
-    source?: string,
+    source?: string
   ) {
     this.ast = ast
     this.transformers = this.buildTransformerList(transformers)
@@ -130,7 +132,7 @@ export default class Context {
   }
 
   private buildTransformerList(
-    list: [string, Partial<TransformerOptions>][]
+    list: TransformerPair[]
   ): InstanceType<typeof Transformer>[] {
     let transformers: InstanceType<typeof Transformer>[] = []
     for (let [name, opt] of list) {
