@@ -7,8 +7,8 @@
     "synchrony": "dist/cli.js"
   },
   "scripts": {
-    "build": "node scripts/build.js",
-    "watch": "node scripts/build.js --watch",
+    "build": "tsc",
+    "watch": "tsc -w",
     "clean": "rimraf dist/",
     "docs": "typedoc --options ./typedoc.json"
   },
@@ -33,7 +33,6 @@
     "@types/node": "17.0.17",
     "@types/prettier": "2.4.4",
     "@types/yargs": "17.0.8",
-    "esbuild": "0.14.21",
     "escodegen": "2.0.0",
     "javascript-obfuscator": "4.0.0",
     "rimraf": "3.0.2",
