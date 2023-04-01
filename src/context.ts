@@ -87,7 +87,13 @@ interface StringArray {
   strings: string[]
 }
 
-export type TransformerPair = [string, Partial<TransformerOptions>]
+export type TransformerPair = [
+  (
+    | { new (options: TransformerOptions): InstanceType<typeof Transformer> }
+    | string
+  ),
+  Partial<TransformerOptions>
+]
 
 export default class Context {
   ast: Program
@@ -136,6 +142,11 @@ export default class Context {
   ): InstanceType<typeof Transformer>[] {
     let transformers: InstanceType<typeof Transformer>[] = []
     for (let [name, opt] of list) {
+      if (typeof name === 'function') {
+        transformers.push(new name(opt))
+        continue
+      }
+
       switch (name.toLowerCase()) {
         case 'controlflow':
           transformers.push(new ControlFlow(opt))
