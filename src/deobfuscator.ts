@@ -52,8 +52,9 @@ export interface DeobfuscateOptions {
 
   /**
    * Rename identifiers (default = false)
+   * If an array of transformers is passed, they will be used in the renaming step
    */
-  rename: boolean
+  rename: TransformerPair[] | boolean
 
   /**
    * Acorn source type
@@ -176,7 +177,7 @@ export class Deobfuscator {
         ) as Program
       context = new Context(
         parsed,
-        [['Rename', {}]],
+        Array.isArray(options.rename) ? options.rename : [['Rename', {}]],
         options.sourceType === 'module'
       )
       context.hash = sourceHash(source)
