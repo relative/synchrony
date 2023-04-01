@@ -21,6 +21,7 @@ import ArrayMap from './transformers/arraymap'
 import Rename from './transformers/rename'
 import JSCCalculator from './transformers/jsconfuser/calculator'
 import JSCControlFlow from './transformers/jsconfuser/controlflow'
+import { Logger } from './util/logger'
 
 export enum DecoderFunctionType {
   SIMPLE,
@@ -103,17 +104,19 @@ export default class Context {
   removeGarbage: boolean = true
   transformers: InstanceType<typeof Transformer>[]
 
-  enableLog: boolean = true
+  logger: Logger
 
   scopeManager: eslintScope.ScopeManager
   hash: number = 0
 
   constructor(
     ast: Program,
+    logger: Logger,
     transformers: [string, Partial<TransformerOptions>][],
     isModule: boolean,
-    source?: string,
+    source?: string
   ) {
+    this.logger = logger
     this.ast = ast
     this.transformers = this.buildTransformerList(transformers)
 
@@ -125,8 +128,7 @@ export default class Context {
   }
 
   public log(message?: any, ...optionalParams: any[]) {
-    if (!this.enableLog) return
-    console.log(message, ...optionalParams)
+    this.logger('log', message, ...optionalParams)
   }
 
   private buildTransformerList(

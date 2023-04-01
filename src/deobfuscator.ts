@@ -6,6 +6,7 @@ import { Node, Program, sp } from './util/types'
 import Context from './context'
 import prettier from 'prettier'
 import { walk } from './util/walk'
+import { defaultLogger, Logger, resolveLogger } from './util/logger'
 
 const FILE_REGEX = /(?<!\.d)\.[mc]?[jt]s$/i // cjs, mjs, js, ts, but no .d.ts
 
@@ -68,6 +69,19 @@ export interface DeobfuscateOptions {
    * Loose parsing (default = false)
    */
   loose: boolean
+
+  /**
+   * Logger
+   */
+  logger: Logger
+}
+
+export interface EasyDeobfuscateOptions
+  extends Partial<Omit<DeobfuscateOptions, 'logger'>> {
+  /**
+   * Logger
+   */
+  logger?: Logger | boolean
 }
 
 function sourceHash(str: string) {
@@ -89,12 +103,17 @@ export class Deobfuscator {
     rename: false,
     sourceType: 'both',
     loose: false,
+    logger: defaultLogger,
   }
 
   private buildOptions(
-    options: Partial<DeobfuscateOptions> = {}
+    options: EasyDeobfuscateOptions = {}
   ): DeobfuscateOptions {
-    return { ...this.defaultOptions, ...options }
+    return {
+      ...this.defaultOptions,
+      ...options,
+      logger: resolveLogger(options.logger),
+    }
   }
 
   private buildAcornOptions(options: DeobfuscateOptions): SAcornOptions {
@@ -126,7 +145,7 @@ export class Deobfuscator {
 
   public async deobfuscateNode(
     node: Program,
-    _options?: Partial<DeobfuscateOptions>
+    _options?: EasyDeobfuscateOptions
   ): Promise<Program> {
     const options = this.buildOptions(_options)
 
@@ -156,6 +175,7 @@ export class Deobfuscator {
 
     let context = new Context(
       node,
+      options.logger,
       options.customTransformers.length > 0
         ? options.customTransformers
         : defaultTransformers,
@@ -163,7 +183,7 @@ export class Deobfuscator {
     )
 
     for (const t of context.transformers) {
-      console.log('Running', t.name, 'transformer')
+      options.logger('log', 'Running', t.name, 'transformer')
       await t.transform(context)
     }
 
@@ -178,12 +198,13 @@ export class Deobfuscator {
         ) as Program
       context = new Context(
         parsed,
+        options.logger,
         [['Rename', {}]],
         options.sourceType === 'module'
       )
       context.hash = sourceHash(source)
       for (const t of context.transformers) {
-        console.log('(rename) Running', t.name, 'transformer')
+        options.logger('log', '(rename) Running', t.name, 'transformer')
         await t.transform(context)
       }
     }
@@ -238,7 +259,7 @@ export class Deobfuscator {
     } catch (err) {
       // I don't think we should log here, but throwing the error is not very
       // important since it is non fatal
-      console.log(err)
+      options.logger('error', err)
     }
 
     return source
