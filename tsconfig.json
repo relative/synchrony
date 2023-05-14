@@ -1,5 +1,8 @@
 {
   "compilerOptions": {
+    "emitDeclarationOnly": true,
+    "baseUrl": "./src",
+    "outDir": "./dist",
     "target": "es6",
     "module": "commonjs",
     "incremental": true,
@@ -7,12 +10,18 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "outDir": "./dist",
 
     "strict": true,
     "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
 
-    "downlevelIteration": true
+    "plugins": [{ "transform": "typescript-transform-paths", "afterDeclarations": true }],
+
+    "paths": {
+      "generated:*": ["../src/__generated__/*"],
+      "~/*": ["./*"]
+    }
   },
-  "include": ["src/**/*"]
+  "files": ["src/global.d.ts", "./src/index.ts"],
+  "include": ["src/global.d.ts", "src/**/*"]
 }

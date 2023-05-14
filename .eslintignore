@@ -1,0 +1,7 @@
+dist/
+scratch/
+scripts/
+.eslintrc.js
+src/templates/
+
+cli.js

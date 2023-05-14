@@ -8,11 +8,17 @@
       "type": "node",
       "request": "launch",
       "name": "Launch Program",
+
+      "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"],
-      "program": "${workspaceFolder}\\dist\\cli.js",
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+
+      "program": "${workspaceFolder}\\src\\cli.js",
+      "runtimeArgs": ["--enable-source-maps"],
       "args": ["scratch/sample.js"],
-      "console": "externalTerminal",
-      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
+      "env": {
+        "NO_COLOR": "1"
+      }
     }
   ]
 }

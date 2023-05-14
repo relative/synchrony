@@ -122,6 +122,9 @@ dist
 
 dist/
 
+src/transformers/dev/
+src/__generated__/
+
 scratch/
 !scratch/config.js
 !scratch/index.js

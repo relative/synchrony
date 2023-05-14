@@ -1,54 +1,15 @@
-import escodegen from '@javascript-obfuscator/escodegen'
-import * as acorn from 'acorn' // no, it cannot be a default import
-import * as acornLoose from 'acorn-loose'
-import { Transformer, TransformerOptions } from './transformers/transformer'
-import { Node, Program, sp } from './util/types'
-import Context from './context'
-import prettier from 'prettier'
-import { walk } from './util/walk'
-
-const FILE_REGEX = /(?<!\.d)\.[mc]?[jt]s$/i // cjs, mjs, js, ts, but no .d.ts
-
-// TODO: remove this when https://github.com/acornjs/acorn/commit/a4a5510 lands
-type ecmaVersion =
-  | 3
-  | 5
-  | 6
-  | 7
-  | 8
-  | 9
-  | 10
-  | 11
-  | 12
-  | 13
-  | 2015
-  | 2016
-  | 2017
-  | 2018
-  | 2019
-  | 2020
-  | 2021
-  | 2022
-  | 'latest'
-
-type TransformerArray = [string, Partial<TransformerOptions>][]
+import { Context } from './context'
+import { ParseResult, parse } from '@babel/parser'
+import * as t from '~/types'
+import { TransformerArray, addTransformer, getTransformerByName } from './util/transform'
+import generate from '@babel/generator'
+import { fromZodError } from 'zod-validation-error'
 
 export interface DeobfuscateOptions {
   /**
-   * ECMA version to use when parsing AST (see acorn, default = 'latest')
-   */
-  ecmaVersion: ecmaVersion
-
-  /**
-   * Replace ChainExpressions with babel-compatible Optional{X}Expessions
-   * for work with Prettier
-   * https://github.com/prettier/prettier/pull/12172
-   * (default = true)
-   */
-  transformChainExpressions: boolean
-
-  /**
    * Custom transformers to use
+   *
+   * You must use the `addTransformer` function to achieve proper type safety when adding elements to the TransformerArray
    */
   customTransformers: TransformerArray
 
@@ -58,189 +19,118 @@ export interface DeobfuscateOptions {
   rename: boolean
 
   /**
-   * Acorn source type
+   * Source type (default = unambiguous)
    *
-   * Both tries module first then script and uses whichever parses properly
+   * Maps to babel/parser option "sourceType"
+   * @see https://babeljs.io/docs/babel-parser#options
    */
-  sourceType: 'both' | 'module' | 'script'
+  sourceType: 'unambiguous' | 'module' | 'script'
 
   /**
    * Loose parsing (default = false)
+   *
+   * Maps to babel/parser option "errorRecovery"
+   * @see https://babeljs.io/docs/babel-parser#options
    */
   loose: boolean
 }
 
-function sourceHash(str: string) {
-  let key = 0x94a3fa21
-  let length = str.length
-  while (length) key = (key * 33) ^ str.charCodeAt(--length)
-  return key >>> 0
-}
-
-interface SAcornOptions extends Omit<acorn.Options, 'sourceType'> {
-  sourceType: 'module' | 'script' | 'both' | undefined
-}
+// function sourceHash(str: string) {
+//   let key = 0x94a3fa21
+//   let length = str.length
+//   while (length) key = (key * 33) ^ str.charCodeAt(--length)
+//   return key >>> 0
+// }
 
 export class Deobfuscator {
   public defaultOptions: DeobfuscateOptions = {
-    ecmaVersion: 'latest',
-    transformChainExpressions: true,
     customTransformers: [],
     rename: false,
-    sourceType: 'both',
+    sourceType: 'unambiguous',
     loose: false,
   }
 
-  private buildOptions(
-    options: Partial<DeobfuscateOptions> = {}
-  ): DeobfuscateOptions {
+  private buildOptions(options: Partial<DeobfuscateOptions> = {}): DeobfuscateOptions {
     return { ...this.defaultOptions, ...options }
   }
 
-  private buildAcornOptions(options: DeobfuscateOptions): SAcornOptions {
-    return {
-      ecmaVersion: options.ecmaVersion,
-      sourceType: options.sourceType,
-      // this is important for eslint-scope !!!!!!
+  private parse(source: string, options: DeobfuscateOptions) {
+    return parse(source, {
+      attachComment: true,
       ranges: true,
-    }
+      errorRecovery: options.loose,
+      sourceType: options.sourceType,
+    })
   }
 
-  private parse(
-    input: string,
-    options: SAcornOptions,
-    deobfOptions: DeobfuscateOptions
-  ): acorn.Node {
-    const a = deobfOptions.loose ? acornLoose : acorn
-    if (options.sourceType !== 'both')
-      return a.parse(input, options as acorn.Options)
+  private async deobfuscate(source: string, node: ParseResult<t.File>, _options: DeobfuscateOptions): Promise<Context> {
+    const ctx = new Context(source, node)
 
-    try {
-      options.sourceType = deobfOptions.sourceType = 'module'
-      return a.parse(input, options as acorn.Options)
-    } catch (err) {
-      options.sourceType = deobfOptions.sourceType = 'script'
-      return a.parse(input, options as acorn.Options)
-    }
-  }
+    const transformers: TransformerArray = [
+      addTransformer('generic/simplify', {}),
+      addTransformer('generic/foldconstants', {}),
+      addTransformer('javascript-obfuscator/demap', {}),
+      addTransformer('generic/desequence', {}),
+      addTransformer('generic/dememberize', {}),
+      addTransformer('generic/deproxify', {}),
 
-  public async deobfuscateNode(
-    node: Program,
-    _options?: Partial<DeobfuscateOptions>
-  ): Promise<Program> {
-    const options = this.buildOptions(_options)
+      addTransformer('generic/foldconstants', {}),
+      addTransformer('generic/simplify', {}),
 
-    const defaultTransformers: TransformerArray = [
-      ['Simplify', {}],
-      ['MemberExpressionCleaner', {}],
-      ['LiteralMap', {}],
-      ['DeadCode', {}],
-      ['Demangle', {}],
+      addTransformer('javascript-obfuscator/stringdecoder', {}),
+      addTransformer('generic/dememberize', {}),
+      addTransformer('javascript-obfuscator/demap', {}),
+      addTransformer('javascript-obfuscator/unflattencontrolflow', {}),
 
-      ['StringDecoder', {}],
-
-      ['Simplify', {}],
-      ['MemberExpressionCleaner', {}],
-
-      ['Desequence', {}],
-      ['ControlFlow', {}],
-      ['Desequence', {}],
-      ['MemberExpressionCleaner', {}],
-
-      //['ArrayMap', {}],
-      ['Simplify', {}],
-      ['DeadCode', {}],
-      ['Simplify', {}],
-      ['DeadCode', {}],
+      addTransformer('generic/foldconstants', {}),
+      addTransformer('generic/deadcode', {}),
+      addTransformer('generic/simplify', {}),
+      addTransformer('finalizer/beautify', {}),
     ]
 
-    let context = new Context(
-      node,
-      options.customTransformers.length > 0
-        ? options.customTransformers
-        : defaultTransformers,
-      options.sourceType === 'module'
-    )
-
-    for (const t of context.transformers) {
-      console.log('Running', t.name, 'transformer')
-      await t.transform(context)
-    }
-
-    if (options.rename) {
-      let source = escodegen.generate(context.ast, {
-          sourceMapWithCode: true,
-        }).code,
-        parsed = this.parse(
-          source,
-          this.buildAcornOptions(options),
-          options
-        ) as Program
-      context = new Context(
-        parsed,
-        [['Rename', {}]],
-        options.sourceType === 'module'
-      )
-      context.hash = sourceHash(source)
-      for (const t of context.transformers) {
-        console.log('(rename) Running', t.name, 'transformer')
-        await t.transform(context)
+    for (const transformer of transformers) {
+      const [tName, tOpts] = transformer
+      const t = getTransformerByName(tName)
+      const result = await t.schema.safeParseAsync(tOpts)
+      if (result.success) {
+        transformer[1] = result.data
+      } else {
+        const validationError = fromZodError(result.error, {
+          prefix: `transformers[${tName}]`,
+        })
+        throw validationError
       }
     }
 
-    return context.ast
-  }
-
-  public async deobfuscateSource(
-    source: string,
-    _options?: Partial<DeobfuscateOptions>
-  ): Promise<string> {
-    const options = this.buildOptions(_options)
-    const acornOptions = this.buildAcornOptions(options)
-    let ast = this.parse(source, acornOptions, options) as Program
-
-    // perform transforms
-    ast = await this.deobfuscateNode(ast, options)
-
-    source = escodegen.generate(ast, {
-      sourceMapWithCode: true,
-    }).code
-    try {
-      source = prettier.format(source, {
-        semi: false,
-        singleQuote: true,
-
-        // https://github.com/prettier/prettier/pull/12172
-        parser: (text, _opts) => {
-          let ast = this.parse(text, acornOptions, options)
-          if (options.transformChainExpressions) {
-            walk(ast as Node, {
-              ChainExpression(cx) {
-                if (cx.expression.type === 'CallExpression') {
-                  sp<any>(cx, {
-                    ...cx.expression,
-                    type: 'OptionalCallExpression',
-                    expression: undefined,
-                  })
-                } else if (cx.expression.type === 'MemberExpression') {
-                  sp<any>(cx, {
-                    ...cx.expression,
-                    type: 'OptionalMemberExpression',
-                    expression: undefined,
-                  })
-                }
-              },
-            })
-          }
-          return ast
-        },
-      })
-    } catch (err) {
-      // I don't think we should log here, but throwing the error is not very
-      // important since it is non fatal
-      console.log(err)
+    for (const [tName, tOpts] of transformers) {
+      const t = getTransformerByName(tName)
+      console.log('Running', tName, tOpts)
+      await t.run(ctx.bind(t), tOpts)
     }
 
-    return source
+    return ctx
+  }
+
+  public async deobfuscateNode(node: t.Program, _options?: Partial<DeobfuscateOptions>): Promise<t.Program> {
+    const options = this.buildOptions(_options)
+    // Need to generate code for node because Context requires source code
+    const gen = generate(node, { comments: true, minified: false })
+    // Reparse to get babel ParseResult
+    const result = this.parse(gen.code, options)
+    const ctx = await this.deobfuscate(gen.code, result, options)
+
+    return ctx.ast.program
+  }
+
+  public async deobfuscateSource(source: string, _options?: Partial<DeobfuscateOptions>): Promise<string> {
+    const options = this.buildOptions(_options)
+    const result = this.parse(source, options)
+
+    const ctx = await this.deobfuscate(source, result, options)
+    const gen = generate(ctx.ast, {
+      comments: true,
+      minified: false,
+    })
+    return gen.code
   }
 }

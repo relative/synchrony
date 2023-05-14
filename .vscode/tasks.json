@@ -5,14 +5,16 @@
       "type": "npm",
       "script": "build",
       "group": "build",
-      "problemMatcher": [],
+      "problemMatcher": [
+        "$esbuild"
+      ],
       "label": "build"
     },
     {
       "type": "npm",
       "script": "watch",
       "group": "build",
-      "problemMatcher": [],
+      "problemMatcher": "$esbuild-watch",
       "label": "watch"
     }
   ]

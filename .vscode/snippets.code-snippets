@@ -1,0 +1,28 @@
+{
+  "Synchrony transformer": {
+    "scope": "typescript",
+    "body": [
+      "import { createTransformer } from '~/util/transform'",
+      "import * as t from '~/types'",
+      "import { z } from 'zod'",
+      "",
+      "const schema = z.object({})",
+      "declare global {",
+      "\tnamespace Synchrony {",
+      "\t\tinterface Transformers {",
+      "\t\t\t'$1': z.input<typeof schema>",
+      "\t\t}",
+      "\t}",
+      "}",
+      "",
+      "export default createTransformer('$1', {",
+      "\tschema,",
+      "\t",
+      "\trun(ctx) {",
+      "\t\t$0",
+      "\t}",
+      "})"
+    ],
+    "description": "Boilerplate transformer code"
+  }
+}

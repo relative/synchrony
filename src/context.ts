@@ -1,182 +1,148 @@
-import {
-  Node,
-  BinaryOperator,
-  BlockId,
-  FunctionExpression,
-  Program,
-} from './util/types'
-import { Transformer, TransformerOptions } from './transformers/transformer'
+import * as t from '~/types'
+import { NodePath, Visitor, visitors } from '@babel/traverse'
+import { ParseResult } from '@babel/parser'
+import { Hub } from '~/util/bhub'
+import { ITransformer } from './util/transform'
 
-import * as eslintScope from 'eslint-scope'
+type ExplodeKeys = keyof ReturnType<typeof visitors.explode>
 
-import ControlFlow from './transformers/controlflow'
-import Desequence from './transformers/desequence'
-import LiteralMap from './transformers/literalmap'
-import MemberExpressionCleaner from './transformers/memberexpressioncleaner'
-import Simplify from './transformers/simplify'
-import StringDecoder from './transformers/stringdecoder'
-import DeadCode from './transformers/deadcode'
-import Demangle from './transformers/demangle'
-import ArrayMap from './transformers/arraymap'
-import Rename from './transformers/rename'
-import JSCCalculator from './transformers/jsconfuser/calculator'
-import JSCControlFlow from './transformers/jsconfuser/controlflow'
-
-export enum DecoderFunctionType {
-  SIMPLE,
-  BASE64,
-  RC4,
+enum LogLevel {
+  Debug,
+  Info,
+  Warn,
+  Error,
 }
 
-export interface DecoderFunction {
-  identifier: string
-  stringArrayIdentifier: string
-  type: DecoderFunctionType
-  offset: number
-  indexArgument: number
-  keyArgument: number
-}
+export class Context {
+  ast: ParseResult<t.File>
+  path: NodePath<t.Program>
+  hub: Hub
+  source: string
 
-export interface DecoderFunctionSimple extends DecoderFunction {
-  type: DecoderFunctionType.SIMPLE
-}
+  // Transformer storage
+  #storage: Record<string, any> = {}
 
-export interface DecoderFunctionBase64 extends DecoderFunction {
-  type: DecoderFunctionType.BASE64
-  charset: string
-}
+  currentlyExecutingTransformer: ITransformer | null = null
 
-export interface DecoderFunctionRC4 extends DecoderFunction {
-  type: DecoderFunctionType.RC4
-  charset: string
-}
-
-export interface DecoderReference {
-  identifier: string
-  realIdentifier: string
-  additionalOffset: number
-
-  // if the wrapper is a function
-  indexArgument?: number
-  keyArgument?: number
-}
-
-interface ControlFlowFunction {
-  identifier: string
-  node: FunctionExpression
-}
-interface ControlFlowLiteral {
-  identifier: string
-  value: string | number
-}
-interface ControlFlowStorage {
-  identifier: string
-  aliases: string[]
-  functions: ControlFlowFunction[]
-  literals: ControlFlowLiteral[]
-}
-
-export enum StringArrayType {
-  FUNCTION,
-  ARRAY,
-}
-
-interface StringArray {
-  identifier: string
-  type: StringArrayType
-  strings: string[]
-}
-
-export default class Context {
-  ast: Program
-  source?: string
-
-  shiftedArrays: number = 0
-  stringArrays: StringArray[] = []
-  stringDecoders: DecoderFunction[] = []
-  stringDecoderReferences: DecoderReference[] = []
-
-  controlFlowStorageNodes: {
-    [x: BlockId]: ControlFlowStorage
-  } = {}
-
-  removeGarbage: boolean = true
-  transformers: InstanceType<typeof Transformer>[]
-
-  enableLog: boolean = true
-
-  scopeManager: eslintScope.ScopeManager
-  hash: number = 0
-
-  constructor(
-    ast: Program,
-    transformers: [string, Partial<TransformerOptions>][],
-    isModule: boolean,
-    source?: string,
-  ) {
+  constructor(source: string, ast: ParseResult<t.File>) {
     this.ast = ast
-    this.transformers = this.buildTransformerList(transformers)
-
     this.source = source
 
-    this.scopeManager = eslintScope.analyze(this.ast, {
-      sourceType: isModule ? 'module' : 'script',
-    })
+    this.hub = new Hub(this.source)
+    this.path = NodePath.get({
+      hub: this.hub,
+      parentPath: null,
+      parent: this.ast,
+      container: this.ast,
+      key: 'program',
+    }).setContext()
+    this.hub.scope = this.path.scope
+
+    // this.transformers = this.buildTransformerList(transformers)
+    // this.source = source
+    // this.scopeManager = eslintScope.analyze(this.ast, {
+    //   sourceType: isModule ? 'module' : 'script',
+    // })
   }
 
-  public log(message?: any, ...optionalParams: any[]) {
-    if (!this.enableLog) return
-    console.log(message, ...optionalParams)
-  }
+  traverse<T>(_visitor: Visitor<T>, state: T): void
+  traverse(_visitor: Visitor): void
+  traverse(_visitor: any, state?: any) {
+    const visitor = visitors.explode(_visitor as Visitor)
 
-  private buildTransformerList(
-    list: [string, Partial<TransformerOptions>][]
-  ): InstanceType<typeof Transformer>[] {
-    let transformers: InstanceType<typeof Transformer>[] = []
-    for (let [name, opt] of list) {
-      switch (name.toLowerCase()) {
-        case 'controlflow':
-          transformers.push(new ControlFlow(opt))
-          break
-        case 'desequence':
-          transformers.push(new Desequence(opt))
-          break
-        case 'literalmap':
-          transformers.push(new LiteralMap(opt))
-          break
-        case 'memberexpressioncleaner':
-          transformers.push(new MemberExpressionCleaner(opt))
-          break
-        case 'simplify':
-          transformers.push(new Simplify(opt))
-          break
-        case 'stringdecoder':
-          transformers.push(new StringDecoder(opt))
-          break
-        case 'deadcode':
-          transformers.push(new DeadCode(opt))
-          break
-        case 'demangle':
-          transformers.push(new Demangle(opt))
-          break
-        case 'arraymap':
-          transformers.push(new ArrayMap(opt))
-          break
-        case 'rename':
-          transformers.push(new Rename(opt))
-          break
-        case 'jsc-calculator':
-          transformers.push(new JSCCalculator(opt))
-          break
-        case 'jsc-controlflow':
-          transformers.push(new JSCControlFlow(opt))
-          break
-        default:
-          throw new TypeError(
-            `Transformer "${name}" is invalid, it does not exist`
-          )
+    // To catch errors inside traversal functions
+    for (const key of Object.keys(visitor) as ExplodeKeys[]) {
+      const obj = visitor[key]
+      if (!obj) continue
+
+      if (Array.isArray(obj.enter)) {
+        /* eslint-disable */
+        // @ts-expect-error
+        obj.enter = obj.enter.map(fn => {
+          let newFn = fn
+
+          newFn = <S, P extends Node>(path: NodePath<P>, state: S): void => {
+            try {
+              return fn.apply(state, [path, state])
+            } catch (err: any) {
+              // throw err
+              const c = typeof err === 'object' ? err.constructor : Error
+
+              const obj = {
+                stack: err.stack,
+              }
+              if (!obj.stack) Error.captureStackTrace(obj, newFn)
+              // @ts-expect-error
+              const newError = this.hub.buildError2(path.node, err.message, obj.stack, c)
+
+              throw newError
+            }
+          }
+
+          if (newFn !== fn) {
+            newFn.toString = () => fn.toString()
+          }
+
+          return newFn
+        })
+        /* eslint-enable */
       }
     }
-    return transformers
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    this.path.traverse(visitor, state)
+  }
+
+  public set<T = any>(name: string, value: T) {
+    this.#storage[name] = value
+  }
+  public get<T = any>(name: string) {
+    return this.#storage[name] as T
+  }
+
+  bind(transformer: ITransformer | null = null): Context {
+    this.currentlyExecutingTransformer = transformer
+    return this
+  }
+
+  addComment(p: t.Node | NodePath<t.Node>, content: string) {
+    // TODO: disable node comments
+    if (this.currentlyExecutingTransformer?.name) {
+      content = ` [${this.currentlyExecutingTransformer.name}]: ${content} `
+    } else {
+      content = ` ${content} `
+    }
+    if (t.isNode(p)) {
+      t.addComment(p, 'leading', content)
+    } else {
+      p.addComment('leading', content)
+    }
+  }
+
+  /* eslint-disable @typescript-eslint/no-unsafe-argument */
+  private log_(level: LogLevel, message?: any, ...optionalParams: any[]) {
+    // if (!this.enableLog) return
+    const prefix = this.currentlyExecutingTransformer?.name ? `[${this.currentlyExecutingTransformer.name}]` : ''
+    switch (level) {
+      case LogLevel.Debug:
+        console.log(prefix, 'debug:', message, ...optionalParams)
+        break
+      case LogLevel.Info:
+        console.info(prefix, 'info:', message, ...optionalParams)
+        break
+      case LogLevel.Warn:
+        console.warn(prefix, 'warn:', message, ...optionalParams)
+        break
+      case LogLevel.Error:
+        console.error(prefix, 'error:', message, ...optionalParams)
+        break
+    }
+  }
+  /* eslint-enable */
+  public log = {
+    debug: this.log_.bind(this, LogLevel.Debug),
+    info: this.log_.bind(this, LogLevel.Info),
+    warn: this.log_.bind(this, LogLevel.Warn),
+    error: this.log_.bind(this, LogLevel.Error),
   }
 }

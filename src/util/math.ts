@@ -1,10 +1,4 @@
-import { BinaryOperator } from './types'
-
-export function mathEval(
-  lhs: number,
-  operator: BinaryOperator,
-  rhs: number
-): number {
+export function mathEval(lhs: number, operator: '+' | '*' | '-' | '/', rhs: number): number {
   switch (operator) {
     case '+':
       return lhs + rhs
@@ -15,6 +9,6 @@ export function mathEval(
     case '/':
       return lhs / rhs
     default:
-      return lhs
+      throw new TypeError('Could not math eval')
   }
 }
