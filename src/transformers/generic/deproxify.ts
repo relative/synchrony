@@ -2,6 +2,7 @@ import { createTransformer } from '~/util/transform'
 import * as t from '~/types'
 import { z } from 'zod'
 import { bindingIsReferenced } from '~/util/scope'
+import { willPathMaybeExecuteBeforeAllNodes } from '~/util/helpers'
 
 const schema = z.object({})
 declare global {
@@ -82,19 +83,37 @@ export default createTransformer('generic/deproxify', {
         //    const a = 1234
         //    console.log(a)
 
+        // Additionally
+        //    let _var = undefined
+        //    _var = init
+        // is turned to
+        //    let _var = init
+
         const id = p.get('id'),
           init = p.get('init')
         if (!id.isIdentifier() || !init.isIdentifier()) return
         const bind = p.scope.getBinding(id.node.name)
-        if (!bind?.constant) return
-        for (const ref of bind.referencePaths) {
-          if (!ref.isIdentifier()) continue
-          ref.replaceWith(init)
+        if (!bind) return
+        if (bind.constant) {
+          for (const ref of bind.referencePaths) {
+            if (!ref.isIdentifier()) continue
+            ref.replaceWith(init)
+          }
+          if (!bindingIsReferenced(bind)) {
+            p.remove()
+          }
+        } else {
+          const { constantViolations, referencePaths, scope } = bind
+          if (constantViolations.length !== 1) return
+
+          const [cv] = constantViolations
+          if (!willPathMaybeExecuteBeforeAllNodes(cv, referencePaths)) return
+
+          if (!cv.isAssignmentExpression()) return
+          init.replaceWith(cv.get('right'))
+          cv.remove()
+          scope.crawl()
         }
-        if (!bindingIsReferenced(bind)) {
-          p.remove()
-        }
-        // debugger
       },
     })
   },

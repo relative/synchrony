@@ -83,3 +83,16 @@ export function allEqual(p: any[]): boolean {
   const el = p[0]
   return !p.some(v => v !== el)
 }
+
+export function willPathMaybeExecuteBeforeAllNodes(path: NodePath, nodes: NodePath[]): boolean {
+  for (const node of nodes) {
+    if (node.isAssignmentExpression()) {
+      const f = path.findParent(p => p.parentPath === node)
+      if (f && f.key !== 'right') return false
+    } else {
+      if (path.isDescendant(node)) return false
+    }
+    if (!path.willIMaybeExecuteBefore(node)) return false
+  }
+  return true
+}
