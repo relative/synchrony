@@ -1,7 +1,7 @@
 import { createTransformer } from '~/util/transform'
 import * as t from '~/types'
 import { z } from 'zod'
-import { createLiteral } from '~/util/translator'
+import { foldConstants } from '~/public/foldConstants'
 
 const schema = z.object({})
 declare global {
@@ -16,25 +16,6 @@ export default createTransformer('generic/foldconstants', {
   schema,
 
   run(ctx) {
-    ctx.traverse({
-      UnaryExpression(p) {
-        const evaluated = p.evaluate()
-        if (evaluated.confident) {
-          const node = createLiteral(evaluated.value)
-          if (node) {
-            p.replaceWith(node)
-          }
-        }
-      },
-      BinaryExpression(p) {
-        const evaluated = p.evaluate()
-        if (evaluated.confident) {
-          const node = createLiteral(evaluated.value)
-          if (node) {
-            p.replaceWith(node)
-          }
-        }
-      },
-    })
+    foldConstants(ctx)
   },
 })
