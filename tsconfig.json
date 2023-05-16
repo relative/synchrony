@@ -18,7 +18,7 @@
     "plugins": [{ "transform": "typescript-transform-paths", "afterDeclarations": true }],
 
     "paths": {
-      "generated:*": ["../src/__generated__/*"],
+      "generated:*": ["./__generated__/*"],
       "~/*": ["./*"]
     }
   },

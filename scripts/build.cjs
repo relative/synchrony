@@ -59,7 +59,10 @@ async function main() {
         files: [join(SRC_PATH, 'cli.js')],
         outdir: DIST_PATH,
       }),
-      esbuildPluginTsc(),
+      esbuildPluginTsc({
+        isWatch: watch,
+        shouldBlockWatch: false,
+      }),
 
       esbuildPluginProblemMatcher(watch),
     ],

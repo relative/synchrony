@@ -1,12 +1,22 @@
 const { Worker } = require('worker_threads')
 
+const defaultOptions = {
+  isWatch: false,
+  shouldBlockWatch: false,
+}
+
 /**
  * Emits type declarations after build completes
- * @param {object} opts
+ * @param {{
+ *    isWatch: boolean
+ *    shouldBlockWatch: boolean
+ * }} opts
  * @returns {import('esbuild').Plugin}
  */
-function esbuildPluginTsc(opts = {}) {
-  opts = Object.assign({}, {}, opts)
+function esbuildPluginTsc(opts = defaultOptions) {
+  opts = Object.assign({}, defaultOptions, opts)
+
+  const { isWatch, shouldBlockWatch } = opts
 
   /**
    * @type {Worker}
@@ -51,7 +61,11 @@ function esbuildPluginTsc(opts = {}) {
       build.onEnd(async () => {
         try {
           console.log('Building type declarations ===')
-          await emitTypes()
+          if (isWatch && shouldBlockWatch) {
+            await emitTypes()
+          } else {
+            emitTypes().catch(e => {})
+          }
         } catch (err) {
           return {
             warnings: [
