@@ -239,6 +239,8 @@ export default createTransformer('jsconfuser/stringdecoder', {
           elements: out.elements as t.StringLiteral[],
         }
 
+        ctx.log.debug('Found string array', id.node.name)
+
         // Find string decoder functions
         for (const ref of bind.referencePaths) {
           if (ref.key !== 'object') continue

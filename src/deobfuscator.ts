@@ -101,17 +101,18 @@ export class Deobfuscator {
 
       addTransformer('jsconfuser/fixer', {}),
       addTransformer('jsconfuser/constants', {}),
+      addTransformer('jsconfuser/unstack', {}),
+      addTransformer('generic/deproxify', {}),
       addTransformer('jsconfuser/unmangle', {}),
 
-      // string decoder
       addTransformer('jsconfuser/stringdecoder', {}),
       addTransformer('generic/dememberize', {}),
       addTransformer('generic/staticvar', {
         propInclude: [],
       }),
-      // stuff
 
       addTransformer('generic/foldconstants', {}),
+      addTransformer('generic/dememberize', {}),
       addTransformer('generic/deadcode', {}),
       addTransformer('generic/simplify', {}),
       addTransformer('finalizer/beautify', {}),

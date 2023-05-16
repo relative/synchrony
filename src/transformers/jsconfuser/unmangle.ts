@@ -1,8 +1,8 @@
 import { createTransformer } from '~/util/transform'
 import * as t from '~/types'
 import { z } from 'zod'
-import { NodePath } from '@babel/traverse'
 import { removeDeadCode } from '~/public/deadCode'
+import { willPathMaybeExecuteBeforeAllNodes } from '~/util/helpers'
 
 const schema = z.object({})
 declare global {
@@ -11,19 +11,6 @@ declare global {
       'jsconfuser/unmangle': z.input<typeof schema>
     }
   }
-}
-
-function willPathMaybeExecuteBeforeAllNodes(path: NodePath, nodes: NodePath[]): boolean {
-  for (const node of nodes) {
-    if (node.isAssignmentExpression()) {
-      const f = path.findParent(p => p.parentPath === node)
-      if (f && f.key !== 'right') return false
-    } else {
-      if (path.isDescendant(node)) return false
-    }
-    if (!path.willIMaybeExecuteBefore(node)) return false
-  }
-  return true
 }
 
 /**

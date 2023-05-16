@@ -3,7 +3,6 @@ import { Context, getContext } from '~/context'
 import { evaluateTruthy } from '~/util/helpers'
 import * as t from '~/types'
 import { bindingIsReferenced } from '../util/scope'
-import { hasSideEffects } from './hasSideEffects'
 
 function replaceIfStatement(p: NodePath<t.IfStatement>, stmt?: NodePath<t.Statement | null | undefined>) {
   if (!stmt || !stmt.isStatement()) {
@@ -16,7 +15,8 @@ function replaceIfStatement(p: NodePath<t.IfStatement>, stmt?: NodePath<t.Statem
   }
 }
 
-export function removeDeadCode(p: Context | NodePath) {
+export function removeDeadCodeOnce(p: Context | NodePath): boolean {
+  let updated = false
   const ctx = getContext(p)
   ctx.path.scope.crawl()
   p.traverse({
@@ -29,8 +29,10 @@ export function removeDeadCode(p: Context | NodePath) {
       const evaluated = evaluateTruthy(test)
       if (evaluated === true) {
         replaceIfStatement(p, consequent)
+        updated = true
       } else if (evaluated === false) {
         replaceIfStatement(p, alternate)
+        updated = true
       }
     },
     ConditionalExpression(p) {
@@ -42,8 +44,10 @@ export function removeDeadCode(p: Context | NodePath) {
       const evaluated = evaluateTruthy(test)
       if (evaluated === true) {
         p.replaceWith(consequent)
+        updated = true
       } else if (evaluated === false) {
         p.replaceWith(alternate)
+        updated = true
       }
     },
     VariableDeclarator(p) {
@@ -54,11 +58,14 @@ export function removeDeadCode(p: Context | NodePath) {
 
       const bind = p.scope.getBinding(id.node.name)
       if (!bind) return
-      if (bind.referenced) return
 
-      if (!hasSideEffects(init)) {
+      if (bind.referenced) return
+      if (!bind.constant) return
+
+      if (init.isConstantExpression()) {
         ctx.log.debug(`removeDeadCode(): Removed variable declaration`, p.toString())
         p.remove()
+        updated = true
       }
     },
     FunctionDeclaration(p) {
@@ -69,7 +76,14 @@ export function removeDeadCode(p: Context | NodePath) {
       if (!bindingIsReferenced(bind)) {
         ctx.log.debug(`removeDeadCode(): Removed function declaration`, identifier)
         p.remove()
+        updated = true
       }
     },
   })
+  return updated
+}
+
+export function removeDeadCode(p: Context | NodePath) {
+  removeDeadCodeOnce(p)
+  // whileGuard(removeDeadCodeOnce, 10, p)
 }
