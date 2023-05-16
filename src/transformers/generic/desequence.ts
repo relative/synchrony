@@ -40,6 +40,14 @@ export default createTransformer('generic/desequence', {
             const statements = createStatementsFromExpressions(expressions)
             parent.set('argument', last.node)
             parent.insertBefore(statements)
+          } else if (parent.isUnaryExpression()) {
+            const { parentPath: exprStmt } = parent
+            if (!exprStmt.isExpressionStatement()) return
+            const { operator } = parent.node
+            if (!['typeof', 'void', '~', '!', '+'].includes(operator)) return
+            const statements = createStatementsFromExpressions(expressions)
+            exprStmt.insertBefore(statements)
+            exprStmt.remove()
           }
         } catch (err) {
           if (err !== CantSolveStatements) throw err
