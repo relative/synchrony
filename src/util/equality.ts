@@ -16,6 +16,7 @@ export type PartialNode<TNode extends Array<t.Node> | t.Node | undefined | null>
 export enum ArrayMode {
   Exact,
   Some,
+  StartsWith,
 }
 
 //#region Extract
@@ -83,6 +84,12 @@ function arrayEquality<TExtracted, T, K extends keyof T>(
       return true
     case ArrayMode.Some:
       break
+    case ArrayMode.StartsWith:
+      if (items.length > oval.length) return false
+      for (let i = 0; i < items.length; ++i) {
+        if (!deepEquality(oval[i], items[i], out)) return false
+      }
+      return true
   }
   return false
 }

@@ -15,7 +15,7 @@
 
       "program": "${workspaceFolder}\\src\\cli.js",
       "runtimeArgs": ["--enable-source-maps"],
-      "args": ["scratch/sample.js"],
+      "args": ["scratch/jsc/sample.js"],
       "env": {
         "NO_COLOR": "1"
       }

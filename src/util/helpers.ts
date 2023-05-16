@@ -76,3 +76,10 @@ export function evaluateTruthy(p: NodePath): boolean | undefined {
   const res = p.evaluate()
   if (res.confident) return !!res.value
 }
+
+export function allEqual(p: any[]): boolean {
+  if (p.length <= 1) return true
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const el = p[0]
+  return !p.some(v => v !== el)
+}

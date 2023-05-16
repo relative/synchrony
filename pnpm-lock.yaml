@@ -83,6 +83,9 @@ devDependencies:
   javascript-obfuscator:
     specifier: 4.0.0
     version: 4.0.0
+  js-confuser:
+    specifier: 1.5.6
+    version: 1.5.6
   rimraf:
     specifier: 3.0.2
     version: 3.0.2
@@ -1082,6 +1085,19 @@ packages:
     engines: {node: '>=10'}
     dev: true
 
+  /escodegen@2.0.0:
+    resolution: {integrity: sha512-mmHKys/C8BFUGI+MAWNcSYoORYLMdPzjrknd2Vc+bUsjN5bXcr8EhrNB+UTqfL1y3I9c4fw2ihgtMPQLBRiQxw==}
+    engines: {node: '>=6.0'}
+    hasBin: true
+    dependencies:
+      esprima: 4.0.1
+      estraverse: 5.3.0
+      esutils: 2.0.3
+      optionator: 0.8.3
+    optionalDependencies:
+      source-map: 0.6.1
+    dev: true
+
   /eslint-config-prettier@8.8.0(eslint@8.40.0):
     resolution: {integrity: sha512-wLbQiFre3tdGgpDv67NQKnJuTlcUVYHas3k+DZCc2U2BadthoEY4B7hLPvAxaqdyOGCzuLfii2fqGph10va7oA==}
     hasBin: true
@@ -1639,6 +1655,13 @@ packages:
       string-template: 1.0.0
       stringz: 2.1.0
       tslib: 2.3.1
+    dev: true
+
+  /js-confuser@1.5.6:
+    resolution: {integrity: sha512-6Q7qdersU+emiKbEF0L5500qbaFQIQ714ajju24WuIjZAAPr6KuYV6ihTSnA8QpSHr9U+3g0+qeXEa1OBK9Qgw==}
+    dependencies:
+      acorn: 8.8.2
+      escodegen: 2.0.0
     dev: true
 
   /js-sdsl@4.3.0:

@@ -66,21 +66,50 @@ export class Deobfuscator {
   private async deobfuscate(source: string, node: ParseResult<t.File>, _options: DeobfuscateOptions): Promise<Context> {
     const ctx = new Context(source, node)
 
+    // const transformers: TransformerArray = [
+    //   addTransformer('generic/simplify', {}),
+    //   addTransformer('generic/foldconstants', {}),
+    //   addTransformer('javascript-obfuscator/demap', {}),
+    //   addTransformer('generic/desequence', {}),
+    //   addTransformer('generic/dememberize', {}),
+    //   addTransformer('generic/deproxify', {}),
+
+    //   addTransformer('generic/foldconstants', {}),
+    //   addTransformer('generic/simplify', {}),
+
+    //   addTransformer('javascript-obfuscator/stringdecoder', {}),
+    //   addTransformer('generic/dememberize', {}),
+    //   addTransformer('javascript-obfuscator/demap', {}),
+    //   addTransformer('javascript-obfuscator/unflattencontrolflow', {}),
+
+    //   addTransformer('generic/foldconstants', {}),
+    //   addTransformer('generic/deadcode', {}),
+    //   addTransformer('generic/simplify', {}),
+    //   addTransformer('finalizer/beautify', {}),
+    // ]
     const transformers: TransformerArray = [
       addTransformer('generic/simplify', {}),
       addTransformer('generic/foldconstants', {}),
-      addTransformer('javascript-obfuscator/demap', {}),
+      // addTransformer('javascript-obfuscator/demap', {}),
       addTransformer('generic/desequence', {}),
       addTransformer('generic/dememberize', {}),
       addTransformer('generic/deproxify', {}),
+      addTransformer('generic/staticvar', {}),
 
       addTransformer('generic/foldconstants', {}),
       addTransformer('generic/simplify', {}),
 
-      addTransformer('javascript-obfuscator/stringdecoder', {}),
+      addTransformer('jsconfuser/fixer', {}),
+      addTransformer('jsconfuser/constants', {}),
+      addTransformer('jsconfuser/unmangle', {}),
+
+      // string decoder
+      addTransformer('jsconfuser/stringdecoder', {}),
       addTransformer('generic/dememberize', {}),
-      addTransformer('javascript-obfuscator/demap', {}),
-      addTransformer('javascript-obfuscator/unflattencontrolflow', {}),
+      addTransformer('generic/staticvar', {
+        propInclude: [],
+      }),
+      // stuff
 
       addTransformer('generic/foldconstants', {}),
       addTransformer('generic/deadcode', {}),
@@ -103,8 +132,9 @@ export class Deobfuscator {
     }
 
     for (const [tName, tOpts] of transformers) {
+      ctx.bind()
       const t = getTransformerByName(tName)
-      console.log('Running', tName, tOpts)
+      ctx.log.info('Running', tName)
       await t.run(ctx.bind(t), tOpts)
     }
 

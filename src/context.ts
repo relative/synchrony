@@ -28,7 +28,7 @@ export class Context {
     this.ast = ast
     this.source = source
 
-    this.hub = new Hub(this.source)
+    this.hub = new Hub(this, this.source)
     this.path = NodePath.get({
       hub: this.hub,
       parentPath: null,
@@ -145,4 +145,8 @@ export class Context {
     warn: this.log_.bind(this, LogLevel.Warn),
     error: this.log_.bind(this, LogLevel.Error),
   }
+}
+
+export function getContext(p: Context | NodePath): Context {
+  return (p.hub as Hub).ctx
 }

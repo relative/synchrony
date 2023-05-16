@@ -28,6 +28,7 @@ import { codeFrameColumns } from '@babel/code-frame'
 import traverse, { HubInterface, Scope, Visitor } from '@babel/traverse'
 import * as t from '~/types'
 import { colorEnabled } from './forceColor'
+import { Context } from '..'
 
 const errorVisitor: Visitor<{ loc: t.Node['loc'] | null }> = {
   enter(path, state) {
@@ -42,8 +43,10 @@ const errorVisitor: Visitor<{ loc: t.Node['loc'] | null }> = {
 export class Hub implements HubInterface {
   public code = ''
   public scope?: Scope
-  constructor(code: string) {
+  public ctx: Context
+  constructor(context: Context, code: string) {
     this.code = code
+    this.ctx = context
   }
   getCode(): string | undefined {
     return this.code
