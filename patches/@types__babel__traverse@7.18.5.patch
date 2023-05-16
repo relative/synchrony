@@ -1,5 +1,5 @@
 diff --git a/index.d.ts b/index.d.ts
-index 98ddb88ac1f937e06a5d562b7bf2ab48a64a34d6..850f0f7971d6407fd511d93dc5805b997198017e 100644
+index 98ddb88ac1f937e06a5d562b7bf2ab48a64a34d6..2eb228a00857649fe0fd4726058ef8f8b62ca3c7 100644
 --- a/index.d.ts
 +++ b/index.d.ts
 @@ -13,6 +13,15 @@
@@ -30,7 +30,23 @@ index 98ddb88ac1f937e06a5d562b7bf2ab48a64a34d6..850f0f7971d6407fd511d93dc5805b99
  
      hasNode(): this is NodePath<NonNullable<this['node']>>;
  
-@@ -883,282 +892,288 @@ export class NodePath<T = Node> {
+@@ -448,6 +457,15 @@ export class NodePath<T = Node> {
+      */
+     isNodeType(type: string): boolean;
+ 
++    /**
++     * Returns true if binding identifier is constant
++     * Returns true if it is a literal (TemplateLiteral elements are checked for constant)
++     * Returns true UnaryExpression argument is constant
++     * Returns true when BinaryExpression sides are constant
++     * Else returns false
++     */
++    isConstantExpression(): boolean
++
+     /**
+      * This checks whether or not we're in one of the following positions:
+      *
+@@ -883,282 +901,288 @@ export class NodePath<T = Node> {
      //#endregion
  
      //#region ------------------------- assertXXX -------------------------
