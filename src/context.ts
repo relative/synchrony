@@ -21,6 +21,7 @@ import ArrayMap from './transformers/arraymap'
 import Rename from './transformers/rename'
 import JSCCalculator from './transformers/jsconfuser/calculator'
 import JSCControlFlow from './transformers/jsconfuser/controlflow'
+import { DeobfuscateOptions } from './deobfuscator'
 
 export enum DecoderFunctionType {
   SIMPLE,
@@ -111,8 +112,8 @@ export default class Context {
   constructor(
     ast: Program,
     transformers: [string, Partial<TransformerOptions>][],
-    isModule: boolean,
-    source?: string,
+    options: DeobfuscateOptions,
+    source?: string
   ) {
     this.ast = ast
     this.transformers = this.buildTransformerList(transformers)
@@ -120,7 +121,9 @@ export default class Context {
     this.source = source
 
     this.scopeManager = eslintScope.analyze(this.ast, {
-      sourceType: isModule ? 'module' : 'script',
+      sourceType: options.sourceType === 'module' ? 'module' : 'script',
+      ecmaVersion:
+        options.ecmaVersion === 'latest' ? 2022 : options.ecmaVersion,
     })
   }
 
