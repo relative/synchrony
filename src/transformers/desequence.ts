@@ -1,4 +1,4 @@
-import { Program, BlockStatement, sp } from '../util/types'
+import { Program, BlockStatement, sp, ExpressionStatement } from '../util/types'
 import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
 import * as Guard from '../util/guard'
@@ -14,22 +14,23 @@ export default class Desequence extends Transformer<DesqeuenceOptions> {
     function visitor(node: BlockStatement | Program) {
       // find expstmt > seqexp in node.body
 
-      for (let stmt of node.body) {
+      let length = node.body.length
+      for (let i = 0; i < length; ++i) {
+        const stmt = node.body[i]
         if (
           Guard.isExpressionStatement(stmt) &&
           Guard.isSequenceExpression(stmt.expression)
         ) {
-          let i = node.body.findIndex(
-            (s) => s.start === stmt.start && s.end === stmt.end
-          )
+          node.body[i].type = 'EmptyStatement'
           let expr = stmt.expression.expressions.map((exp) => ({
             type: 'ExpressionStatement',
             expression: exp,
-          }))
-          ;(node.body[i] as any) = expr
+          })) as ExpressionStatement[]
+          node.body.splice(i, 0, ...expr)
+          i += expr.length
+          length = node.body.length
         }
       }
-      sp<Program>(node, { body: node.body.flat() })
     }
     walk(ast, {
       BlockStatement(node) {
