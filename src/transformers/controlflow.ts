@@ -10,11 +10,12 @@ import {
   Identifier,
   ObjectExpression,
   Statement,
+  BlockStatement,
 } from '../util/types'
 import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
 import * as Guard from '../util/guard'
-import Context from '../context'
+import Context, { ControlFlowStorage } from '../context'
 import {
   immutate,
   literalOrIdentifierToString,
@@ -38,22 +39,31 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
     if (!fx.body.body[0].argument)
       throw new TypeError('Function in CFSN was invalid (void return)')
 
-    let params = fx.params as Identifier[],
-      paramMap: { [ident: string]: Node } = {}
+    const params = fx.params as Identifier[],
+      paramMap = new Map<string, Node>()
     let i = 0
     for (const p of params) {
-      paramMap[p.name] = cx.arguments[i]
+      paramMap.set(p.name, cx.arguments[i])
       ++i
     }
     let immRtn = immutate(fx.body.body[0].argument)
     walk(immRtn, {
       Identifier(id) {
-        if (!paramMap[id.name]) return
-        sp<Node>(id, paramMap[id.name])
+        const node = paramMap.get(id.name)
+        if (!node) return
+        sp<Node>(id, node)
       },
     })
 
     return immRtn as Node
+  }
+
+  private getStorageNode(
+    context: Context,
+    node: BlockStatement
+  ): ControlFlowStorage | undefined {
+    const bid = getBlockId(node)
+    return context.controlFlowStorageNodes.get(bid)
   }
 
   // fixes empty object inits where there are setters in the same block
@@ -125,7 +135,8 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
         // /shrug
         let bid = getBlockId(node)
 
-        if (context.controlFlowStorageNodes[bid]) return
+        let cfsn = context.controlFlowStorageNodes.get(bid)
+        if (cfsn) return
         if (node.body.length === 0) return
 
         walk(node, {
@@ -145,13 +156,14 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
                 )
               )
                 continue
-              context.controlFlowStorageNodes[bid] = {
+
+              cfsn = {
                 identifier: decl.id.name,
                 aliases: [decl.id.name],
                 functions: [],
                 literals: [],
               }
-              const cfsn = context.controlFlowStorageNodes[bid]
+              context.controlFlowStorageNodes.set(bid, cfsn)
               for (const prop of decl.init.properties as PropertyLiteral[]) {
                 let kn: Identifier | Literal = prop.key
                 let key = (
@@ -228,12 +240,10 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
 
   findStorageNodeAliases = (context: Context, ast: Node) => {
     walk(ast, {
-      BlockStatement(node) {
-        let bid = getBlockId(node)
-
-        if (!context.controlFlowStorageNodes[bid]) return
+      BlockStatement: (node) => {
         if (node.body.length === 0) return
-        const cfsn = context.controlFlowStorageNodes[bid]
+        const cfsn = this.getStorageNode(context, node)
+        if (!cfsn) return
 
         walk(node, {
           VariableDeclaration(vd) {
@@ -268,11 +278,9 @@ export default class ControlFlow extends Transformer<ControlFlowOptions> {
   replacer = (context: Context, ast: Node) => {
     const { translateCallExp } = this
     walk(ast, {
-      BlockStatement(node) {
-        const bid = getBlockId(node)
-        if (!context.controlFlowStorageNodes[bid]) return
-        const cfsn = context.controlFlowStorageNodes[bid]
-
+      BlockStatement: (node) => {
+        const cfsn = this.getStorageNode(context, node)
+        if (!cfsn) return
         walk(node, {
           MemberExpression(mx) {
             if (!Guard.isIdentifier(mx.object)) return
