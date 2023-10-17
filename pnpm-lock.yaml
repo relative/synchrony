@@ -1,5 +1,9 @@
 lockfileVersion: '6.0'
 
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
 dependencies:
   '@javascript-obfuscator/escodegen':
     specifier: 2.3.0
@@ -19,9 +23,6 @@ dependencies:
   mersenne-twister:
     specifier: 1.1.0
     version: 1.1.0
-  prettier:
-    specifier: 2.5.1
-    version: 2.5.1
   yargs:
     specifier: 17.3.1
     version: 17.3.1
@@ -42,9 +43,6 @@ devDependencies:
   '@types/node':
     specifier: 17.0.17
     version: 17.0.17
-  '@types/prettier':
-    specifier: 2.4.4
-    version: 2.4.4
   '@types/yargs':
     specifier: 17.0.8
     version: 17.0.8
@@ -120,10 +118,6 @@ packages:
 
   /@types/node@17.0.17:
     resolution: {integrity: sha512-e8PUNQy1HgJGV3iU/Bp2+D/DXh3PYeyli8LgIwsQcs1Ar1LoaWHSIT6Rw+H2rNJmiq6SNWiDytfx8+gYj7wDHw==}
-    dev: true
-
-  /@types/prettier@2.4.4:
-    resolution: {integrity: sha512-ReVR2rLTV1kvtlWFyuot+d1pkpG2Fw/XKE3PDAdj57rbM97ttSp9JZ2UsP+2EHTylra9cUf6JA7tGwW1INzUrA==}
     dev: true
 
   /@types/yargs-parser@20.2.1:
@@ -951,12 +945,6 @@ packages:
   /prelude-ls@1.1.2:
     resolution: {integrity: sha1-IZMqVJ9eUv/ZqCf1cOBL5iqX2lQ=}
     engines: {node: '>= 0.8.0'}
-
-  /prettier@2.5.1:
-    resolution: {integrity: sha512-vBZcPRUR5MZJwoyi3ZoyQlc1rXeEck8KgeC9AwwOn+exuxLxq5toTRDTSaVrXHxelDMHy9zlicw8u66yxoSUFg==}
-    engines: {node: '>=10.13.0'}
-    hasBin: true
-    dev: false
 
   /process@0.11.10:
     resolution: {integrity: sha1-czIwDoQBYb2j5podHZGn1LwW8YI=}
