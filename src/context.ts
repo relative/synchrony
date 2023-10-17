@@ -69,7 +69,7 @@ interface ControlFlowLiteral {
   identifier: string
   value: string | number
 }
-interface ControlFlowStorage {
+export interface ControlFlowStorage {
   identifier: string
   aliases: string[]
   functions: ControlFlowFunction[]
@@ -96,9 +96,7 @@ export default class Context {
   stringDecoders: DecoderFunction[] = []
   stringDecoderReferences: DecoderReference[] = []
 
-  controlFlowStorageNodes: {
-    [x: BlockId]: ControlFlowStorage
-  } = {}
+  controlFlowStorageNodes = new Map<BlockId, ControlFlowStorage>()
 
   removeGarbage: boolean = true
   transformers: InstanceType<typeof Transformer>[]
@@ -112,7 +110,7 @@ export default class Context {
     ast: Program,
     transformers: [string, Partial<TransformerOptions>][],
     isModule: boolean,
-    source?: string,
+    source?: string
   ) {
     this.ast = ast
     this.transformers = this.buildTransformerList(transformers)

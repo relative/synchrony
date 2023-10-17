@@ -48,9 +48,7 @@ function inverseOperator(operator: BinaryOperator) {
       throw new Error("Invalid operator to inverse '" + operator + "'")
   }
 }
-interface VarStack {
-  [x: string]: number
-}
+type VarStack = Map<string, number>
 function generateCode(ast: Node): string {
   return escodegen.generate(ast as any, {
     sourceMapWithCode: true,
@@ -69,31 +67,37 @@ function evaluateAssignmentExpr(
   operator: AssignmentOperator,
   value: number
 ) {
+  if (operator === '=') return stack.set(vk, value)
+
+  const stackVal = stack.get(vk)
+  if (typeof stackVal !== 'number')
+    throw new Error(
+      'Unexpected non-numeric value in jsconfuser controlflow stack'
+    )
+
   switch (operator) {
-    case '=':
-      return (stack[vk] = value)
     case '+=':
-      return (stack[vk] += value)
+      return stack.set(vk, stackVal + value)
     case '-=':
-      return (stack[vk] -= value)
+      return stack.set(vk, stackVal - value)
     case '*=':
-      return (stack[vk] *= value)
+      return stack.set(vk, stackVal * value)
     case '/=':
-      return (stack[vk] /= value)
+      return stack.set(vk, stackVal / value)
     case '%=':
-      return (stack[vk] %= value)
+      return stack.set(vk, stackVal % value)
     case '<<=':
-      return (stack[vk] <<= value)
+      return stack.set(vk, stackVal << value)
     case '>>=':
-      return (stack[vk] >>= value)
+      return stack.set(vk, stackVal >> value)
     case '>>>=':
-      return (stack[vk] >>>= value)
+      return stack.set(vk, stackVal >>> value)
     case '&=':
-      return (stack[vk] &= value)
+      return stack.set(vk, stackVal & value)
     case '^=':
-      return (stack[vk] ^= value)
+      return stack.set(vk, stackVal ^ value)
     case '|=':
-      return (stack[vk] |= value)
+      return stack.set(vk, stackVal | value)
     default:
       throw new Error(
         'Invalid assignment expression operator "' + operator + '"'
@@ -101,9 +105,8 @@ function evaluateAssignmentExpr(
   }
 }
 function updateIdentifiers(stack: VarStack, obj: any) {
-  for (const vk in stack) {
-    let value = stack[vk],
-      node = createLiteral(value)
+  for (const [vk, value] of stack) {
+    const node = createLiteral(value)
 
     walk(obj, {
       Identifier(id) {
@@ -149,7 +152,7 @@ function evaluateSequenceAssignments(
       continue
     }
     if (!Guard.isIdentifier(expr.left)) continue
-    if (!(expr.left.name in stack)) continue
+    if (!stack.has(expr.left.name)) continue
     const vk = expr.left.name,
       operator = expr.operator
 
@@ -179,7 +182,7 @@ function evaluateSequenceAssignments(
 
     let effect = literalOrUnaryExpressionToNumber(ie)
     evaluateAssignmentExpr(stack, vk, operator, effect)
-    log(`stack[${vk}] = ${stack[vk]}`)
+    log(`stack[${vk}] = ${stack.get(vk)}`)
     log('='.repeat(32))
     ;(expr as any).type = 'EmptyStatement'
   }
@@ -208,24 +211,24 @@ export default class JSCControlFlow extends Transformer<JSCControlFlowOptions> {
         )
           continue
 
-        const stack: VarStack = {}
+        const stack: VarStack = new Map()
 
         let bx = w.test,
           additive = false
         while (Guard.isBinaryExpression(bx)) {
           additive = bx.operator === '+'
           if (Guard.isIdentifier(bx.left)) {
-            stack[bx.left.name] = bx.left.start
+            stack.set(bx.left.name, bx.left.start)
           }
           if (Guard.isIdentifier(bx.right)) {
-            stack[bx.right.name] = bx.right.start
+            stack.set(bx.right.name, bx.right.start)
           }
           bx = bx.left as BinaryExpression
         }
         if (!additive) continue
-        for (const vk in stack) {
+        for (const [vk, value] of stack) {
           let vref = scope.references.find(
-            (i) => i.identifier.range![0] === stack[vk]
+            (i) => i.identifier.range![0] === value
           )
           if (!vref) continue
           if (
@@ -246,7 +249,7 @@ export default class JSCControlFlow extends Transformer<JSCControlFlowOptions> {
               i.range![0] !== def.node.range![0] &&
               i.range![1] !== def.node.range![1]
           )
-          stack[vk] = literalOrUnaryExpressionToNumber(def.node.init)
+          stack.set(vk, literalOrUnaryExpressionToNumber(def.node.init))
         }
         const endState = literalOrUnaryExpressionToNumber(w.test.right)
         context.log(stack, endState)

@@ -24,7 +24,7 @@ export default class LiteralMap extends Transformer<LiteralMapOptions> {
   demap(context: Context) {
     walk(context.ast, {
       BlockStatement(node) {
-        const map: { [x: string]: { [x: string]: any } } = {}
+        const map = new Map<string, Map<string, any>>()
 
         walk(node, {
           VariableDeclaration(vd) {
@@ -48,16 +48,16 @@ export default class LiteralMap extends Transformer<LiteralMapOptions> {
                 continue
 
               const name = decl.id.name
-              map[name] = map[name] || {}
-
+              const localMap = map.get(name) || new Map<string, any>()
               for (const _prop of decl.init.properties) {
                 const prop = _prop as Property
                 let key =
                   prop.key.type === 'Identifier'
                     ? prop.key.name
                     : ((prop.key as Literal).value as string)
-                map[name][key] = (prop.value as Literal).value as string
+                localMap.set(key, (prop.value as Literal).value as string)
               }
+              if (!map.has(name)) map.set(name, localMap)
 
               if (context.removeGarbage) {
                 rm.push(`${decl.start}!${decl.end}`)
@@ -77,13 +77,13 @@ export default class LiteralMap extends Transformer<LiteralMapOptions> {
                 !Guard.isIdentifier(exp.property))
             )
               return
-            let mapObj = map[exp.object.name]
+            let mapObj = map.get(exp.object.name)
             if (!mapObj) return
 
             let key = Guard.isIdentifier(exp.property)
               ? exp.property.name
               : ((exp.property as Literal).value as string)
-            let val = mapObj[key]
+            let val = mapObj.get(key)
             if (typeof val === 'undefined') return // ! check causes !0 == true.
             sp<Literal>(exp, {
               type: 'Literal',
@@ -104,7 +104,6 @@ export default class LiteralMap extends Transformer<LiteralMapOptions> {
       if (!scope) return
 
       for (const v of scope.variables) {
-        if (/*func.start === 3547 && */ v.name === 'q') debugger
         if (v.name === 'arguments') continue
         if (v.identifiers.length !== 1) continue // ?
         if (v.defs.length !== 1) continue // ?
