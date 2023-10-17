@@ -104,7 +104,6 @@ export default class LiteralMap extends Transformer<LiteralMapOptions> {
       if (!scope) return
 
       for (const v of scope.variables) {
-        if (/*func.start === 3547 && */ v.name === 'q') debugger
         if (v.name === 'arguments') continue
         if (v.identifiers.length !== 1) continue // ?
         if (v.defs.length !== 1) continue // ?
