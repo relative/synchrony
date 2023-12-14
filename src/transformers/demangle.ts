@@ -1,5 +1,4 @@
 import {
-  Program,
   BlockStatement,
   sp,
   Function,
@@ -17,6 +16,7 @@ import { Transformer, TransformerOptions } from './transformer'
 import { walk } from '../util/walk'
 import * as Guard from '../util/guard'
 import Context from '../context'
+import { filterEmptyStatements } from '../util/helpers'
 
 export interface DemangleOptions extends TransformerOptions {}
 export default class Demangle extends Transformer<DemangleOptions> {
@@ -29,6 +29,7 @@ export default class Demangle extends Transformer<DemangleOptions> {
   demangleProxies(context: Context) {
     function visitor(func: Function) {
       if (!Guard.isBlockStatement(func.body)) return
+      func.body.body = filterEmptyStatements(func.body.body) as Statement[];
       if (func.body.body.length !== 2) return
       let body = func.body.body
 

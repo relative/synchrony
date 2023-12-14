@@ -1,19 +1,13 @@
 import {
-  Program,
-  BlockStatement,
   Node,
   sp,
   VariableDeclaration,
-  ExpressionStatement,
-  ReturnStatement,
-  CallExpression,
   FunctionExpression,
   AssignmentExpression,
   StringLiteral,
   Identifier,
   Statement,
   Literal,
-  UnaryExpression,
   Expression,
   BinaryExpression,
   VariableDeclarator,
@@ -338,7 +332,8 @@ export default class StringDecoder extends Transformer<StringDecoderOptions> {
         const block = node.body
         const fnId = node.id.name
 
-        if (block.body.length > 3 && block.body.length < 1) return
+        block.body = filterEmptyStatements(block.body) as Statement[];
+        if (block.body.length > 3 || block.body.length < 1) return
         if (!block.body[0]) return
         // stringArray declaration
         if (
