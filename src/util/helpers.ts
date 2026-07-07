@@ -3,7 +3,7 @@ import { Node, EmptyStatement, Literal, Identifier } from './types'
 
 // Immutability™™™™™™
 export function immutate(item: any) {
-  return JSON.parse(JSON.stringify(item))
+  return structuredClone(item)
 }
 
 export function literalOrIdentifierToString(node: Node): string {
